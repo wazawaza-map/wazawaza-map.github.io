@@ -21,6 +21,7 @@ export type Place = {
   longitude: number;
   category: string | null;
   tags: string[];
+  access_modes: string[];
   visit_minutes: number | null;
   indoor_outdoor: string | null;
   station_walk_min: number | null;

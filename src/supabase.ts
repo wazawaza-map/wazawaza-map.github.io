@@ -37,6 +37,7 @@ export async function getPlaces(locale = "ru"): Promise<Place[]> {
     "longitude",
     "category",
     "tags",
+    "access_modes",
     "visit_minutes",
     "indoor_outdoor",
     "station_walk_min",

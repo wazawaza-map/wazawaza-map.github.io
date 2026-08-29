@@ -1,0 +1,83 @@
+{
+  "jp_1ch5g34": { "latitude": 34.178108, "longitude": 131.478622 },
+  "jp_02ibg2r": { "latitude": 34.178711, "longitude": 131.478317 },
+  "jp_12sa5pz": { "latitude": 35.0101265, "longitude": 135.768105 },
+  "jp_0lrmvl3": { "status": "draft" },
+  "jp_0lrmvl3_2": { "latitude": 35.2977354, "longitude": 139.4813837 },
+  "jp_1ml54j5": { "latitude": 35.4747915, "longitude": 138.6665393 },
+  "jp_18ktc9u": { "status": "draft" },
+  "jp_0zg01o9": { "latitude": 35.6600024, "longitude": 139.6987312 },
+  "jp_1db2yzz": { "latitude": 35.664635, "longitude": 139.70462 },
+  "jp_0lqjcu9": { "latitude": 35.670723, "longitude": 139.704788 },
+  "jp_09q1ews": { "latitude": 35.670776, "longitude": 139.479736 },
+  "jp_054ogji": { "latitude": 35.6662428, "longitude": 139.5026237 },
+  "jp_0mymcx2": { "latitude": 35.6826907, "longitude": 139.7643437 },
+  "jp_1db0uec_2": { "status": "draft" },
+  "jp_0gsavhd": { "latitude": 35.7049444, "longitude": 139.5771236 },
+  "jp_15mtus0": { "latitude": 35.704658, "longitude": 139.5747287 },
+  "jp_1nyft0q": { "latitude": 35.700695, "longitude": 139.5711865 },
+  "jp_1y0hxce": { "latitude": 35.7092407, "longitude": 139.6656853 },
+  "jp_0ose2qj": { "latitude": 35.7101011, "longitude": 139.8093338 },
+  "jp_14vnmmh": { "latitude": 35.7118027, "longitude": 139.4094381 },
+  "jp_1lz1jke": { "latitude": 35.7122591, "longitude": 139.3943216 },
+  "jp_05oodrh": { "latitude": 35.696358, "longitude": 139.419891 },
+  "jp_1nq28m0": { "latitude": 35.6987812, "longitude": 139.4182267 },
+  "jp_1sieasc": { "latitude": 35.695591, "longitude": 139.42009 },
+  "jp_0rxy9bm": { "latitude": 35.7014227, "longitude": 139.4137502 },
+  "jp_1gk01rl": { "latitude": 35.720364, "longitude": 139.464783 },
+  "jp_1z02m35": { "latitude": 35.741918, "longitude": 139.500412 },
+  "jp_0v21i1t": { "latitude": 35.7247892, "longitude": 139.7685576 },
+  "jp_0cvctxb": { "latitude": 35.7272396, "longitude": 139.1881471 },
+  "jp_15niyyn": { "latitude": 35.7469079, "longitude": 139.2091329 },
+  "jp_0ep0orn": { "latitude": 35.8009016, "longitude": 139.1848433 },
+  "jp_1szyxxr": { "latitude": 35.7960037, "longitude": 139.1613433 },
+  "jp_16f2k57": { "latitude": 35.8111087, "longitude": 139.1239588 },
+  "jp_1q3kcuy": { "latitude": 35.8131774, "longitude": 139.1291762 },
+  "jp_0b9vpe6": { "latitude": 35.9145787, "longitude": 138.4195054 },
+  "jp_1w3xi98": { "status": "draft" },
+  "jp_07cuv2n_2": { "status": "draft" },
+  "jp_13wmexo": {
+    "latitude": 35.312986,
+    "longitude": 139.533521,
+    "prefecture": "神奈川県",
+    "municipality": "鎌倉市",
+    "google_maps_url": "https://www.google.com/maps/place/Benten+Cave/data=!4m2!3m1!1s0x601845f3f066881b:0x893bf09de79c9bbe",
+    "website_url": "https://www.hasedera.jp/about/",
+    "station_walk_min": 5,
+    "access_source_url": "https://www.hasedera.jp/guide/",
+    "cluster_id": "kanagawa_kamakura_hase",
+    "translation": {
+      "name": "弁天窟 (Benten-kutsu)",
+      "area": "Камакура · Хасэ",
+      "summary": "弁天窟 — небольшая рукотворная пещера на территории храма 長谷寺 в Камакуре.",
+      "interest": "В стенах высечены Бэндзайтэн и шестнадцать её спутников; короткое, тесное и очень атмосферное подземное святилище.",
+      "nearest_station": "長谷駅 (станция Хасэ)",
+      "access_note": "От станции 長谷駅 линии Энодэн — около 5 минут пешком; пещера находится внутри платной территории 長谷寺.",
+      "hours_note": "Вход вместе с посещением 長谷寺: обычно 8:00–17:00, с продлёнными часами с апреля по июнь.",
+      "price_note": "Взрослые — 400 иен, дети 6–11 лет — 200 иен.",
+      "cluster_name": "Камакура · Хасэ"
+    },
+    "legacy_patch": {
+      "name": "弁天窟 (Benten-kutsu)",
+      "summary": "弁天窟 — небольшая рукотворная пещера на территории храма 長谷寺 в Камакуре.",
+      "interest": "В стенах высечены Бэндзайтэн и шестнадцать её спутников; короткое, тесное и очень атмосферное подземное святилище.",
+      "prefecture": { "jp": "神奈川県", "ru": "Канагава" },
+      "area": { "jp": "鎌倉市長谷", "ru": "Камакура · Хасэ" },
+      "location": {
+        "lat": 35.312986,
+        "lng": 139.533521,
+        "nearestStation": "長谷駅 (станция Хасэ)",
+        "stationWalkMin": 5
+      },
+      "cluster": { "id": "kanagawa_kamakura_hase", "name": "Камакура · Хасэ" },
+      "links": {
+        "googleMaps": "https://www.google.com/maps/place/Benten+Cave/data=!4m2!3m1!1s0x601845f3f066881b:0x893bf09de79c9bbe",
+        "officialOrSource": "https://www.hasedera.jp/about/"
+      },
+      "access": {
+        "note": "От станции 長谷駅 линии Энодэн — около 5 минут пешком; пещера находится внутри платной территории 長谷寺.",
+        "sourceUrl": "https://www.hasedera.jp/guide/"
+      }
+    }
+  }
+}

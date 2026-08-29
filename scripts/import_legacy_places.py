@@ -31,6 +31,8 @@ DEFAULT_SOURCE = (
     "japan-places-map/source/public/japan_places_map_data.json"
 )
 BATCH_SIZE = 100
+OVERRIDES_PATH = Path(__file__).with_name("coordinate_overrides.json")
+COORDINATE_OVERRIDES = json.loads(OVERRIDES_PATH.read_text(encoding="utf-8"))
 
 
 def nested(obj: dict[str, Any], *keys: str, default: Any = None) -> Any:
@@ -46,6 +48,16 @@ def clean_date(value: Any) -> str | None:
     if isinstance(value, str) and len(value) >= 10:
         return value[:10]
     return None
+
+
+def deep_merge(base: dict[str, Any], patch: dict[str, Any]) -> dict[str, Any]:
+    result = dict(base)
+    for key, value in patch.items():
+        if isinstance(value, dict) and isinstance(result.get(key), dict):
+            result[key] = deep_merge(result[key], value)
+        else:
+            result[key] = value
+    return result
 
 
 def load_source(source: str) -> dict[str, Any]:
@@ -171,26 +183,27 @@ def make_place_rows(
     for place in places:
         legacy_id = place["id"]
         current = existing.get(legacy_id, {})
+        override = COORDINATE_OVERRIDES.get(legacy_id, {})
 
         rows.append(
             {
                 "legacy_id": legacy_id,
                 "slug": current.get("slug"),
-                "prefecture": (
+                "prefecture": override.get("prefecture", (
                     nested(place, "prefecture", "jp")
                     or nested(place, "prefecture", "ru")
-                ),
-                "municipality": current.get("municipality"),
-                "latitude": nested(place, "location", "lat"),
-                "longitude": nested(place, "location", "lng"),
+                )),
+                "municipality": override.get("municipality", current.get("municipality")),
+                "latitude": override.get("latitude", nested(place, "location", "lat")),
+                "longitude": override.get("longitude", nested(place, "location", "lng")),
                 "category": place.get("category"),
-                "google_maps_url": nested(place, "links", "googleMaps"),
-                "website_url": nested(place, "links", "officialOrSource"),
-                "status": current.get("status") or "draft",
+                "google_maps_url": override.get("google_maps_url", nested(place, "links", "googleMaps")),
+                "website_url": override.get("website_url", nested(place, "links", "officialOrSource")),
+                "status": override.get("status", current.get("status") or "draft"),
                 "tags": place.get("tags") or [],
-                "station_walk_min": nested(place, "location", "stationWalkMin"),
+                "station_walk_min": override.get("station_walk_min", nested(place, "location", "stationWalkMin")),
                 "access_modes": nested(place, "access", "modes", default=[]) or [],
-                "access_source_url": nested(place, "access", "sourceUrl"),
+                "access_source_url": override.get("access_source_url", nested(place, "access", "sourceUrl")),
                 "access_checked_at": clean_date(nested(place, "access", "checkedAt")),
                 "visit_minutes": nested(place, "visit", "minutes"),
                 "indoor_outdoor": nested(place, "visit", "indoorOutdoor"),
@@ -200,8 +213,8 @@ def make_place_rows(
                 "research_checked_at": clean_date(
                     nested(place, "research", "originalCheckedAt")
                 ),
-                "cluster_id": nested(place, "cluster", "id"),
-                "legacy_data": place,
+                "cluster_id": override.get("cluster_id", nested(place, "cluster", "id")),
+                "legacy_data": deep_merge(place, override.get("legacy_patch", {})),
             }
         )
 
@@ -215,21 +228,22 @@ def make_translation_rows(
     rows: list[dict[str, Any]] = []
 
     for place in places:
+        override = COORDINATE_OVERRIDES.get(place["id"], {}).get("translation", {})
         rows.append(
             {
                 "place_id": id_map[place["id"]],
                 "locale": "ru",
-                "name": place.get("name") or place["id"],
-                "summary": place.get("summary"),
+                "name": override.get("name", place.get("name") or place["id"]),
+                "summary": override.get("summary", place.get("summary")),
                 "notes": None,
-                "nearest_station": nested(place, "location", "nearestStation"),
-                "access_note": nested(place, "access", "note"),
-                "area": nested(place, "area", "ru"),
-                "interest": place.get("interest"),
+                "nearest_station": override.get("nearest_station", nested(place, "location", "nearestStation")),
+                "access_note": override.get("access_note", nested(place, "access", "note")),
+                "area": override.get("area", nested(place, "area", "ru")),
+                "interest": override.get("interest", place.get("interest")),
                 "seasonality": nested(place, "visit", "seasonality"),
-                "price_note": nested(place, "visit", "priceNote"),
-                "hours_note": nested(place, "visit", "hoursNote"),
-                "cluster_name": nested(place, "cluster", "name"),
+                "price_note": override.get("price_note", nested(place, "visit", "priceNote")),
+                "hours_note": override.get("hours_note", nested(place, "visit", "hoursNote")),
+                "cluster_name": override.get("cluster_name", nested(place, "cluster", "name")),
             }
         )
 

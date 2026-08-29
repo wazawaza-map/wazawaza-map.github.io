@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",
+    "audit:coordinates": "python3 scripts/audit_coordinates.py",
     "preview": "vite preview"
   },
   "devDependencies": {

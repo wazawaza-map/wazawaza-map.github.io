@@ -21,6 +21,19 @@ export function createPlacesMap(
 
   const markers = new Map<number, L.Marker>();
   let displayedPlaceIds = new Set(places.map((place) => place.id));
+  let selectedPlaceId: number | null = null;
+
+  function updateMarkerSelection(): void {
+    for (const [placeId, marker] of markers) {
+      const selected = placeId === selectedPlaceId;
+
+      marker.getElement()?.classList.toggle(
+        "is-selected-marker",
+        selected
+      );
+      marker.setZIndexOffset(selected ? 1000 : 0);
+    }
+  }
 
   function notifyViewportPlaces(): void {
     const mapSize = map.getSize();
@@ -100,6 +113,11 @@ export function createPlacesMap(
       markers.get(place.id)?.openPopup();
     },
 
+    selectPlace(place: Place | null) {
+      selectedPlaceId = place?.id ?? null;
+      updateMarkerSelection();
+    },
+
     focusPlaces(placesToFocus: Place[]) {
       if (placesToFocus.length === 0) return;
 
@@ -123,12 +141,15 @@ export function createPlacesMap(
 
       for (const [placeId, marker] of markers) {
         if (displayedPlaceIds.has(placeId)) {
-          if (!map.hasLayer(marker)) marker.addTo(map);
+          if (!map.hasLayer(marker)) {
+            marker.addTo(map);
+          }
         } else {
           marker.removeFrom(map);
         }
       }
 
+      updateMarkerSelection();
       notifyViewportPlaces();
     },
 
