@@ -38,6 +38,7 @@ from (values
   ('jp_1q3kcuy', 35.8131774, 139.1291762),
   ('jp_0b9vpe6', 35.9145787, 138.4195054)
   ,('jp_13wmexo', 35.312986, 139.533521)
+  ,('jp_16vu9nd', 39.9292411, 139.7665485)
 ) as v(legacy_id, latitude, longitude)
 where p.legacy_id = v.legacy_id;
 

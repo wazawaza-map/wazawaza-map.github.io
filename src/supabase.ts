@@ -44,16 +44,25 @@ export async function getPlaces(locale = "ru"): Promise<Place[]> {
     "reservation",
     "google_maps_url",
     "website_url",
-    "place_translations!inner(locale,name,summary,area,nearest_station,access_note,interest,seasonality,price_note,hours_note,cluster_name)",
+    "visited_at",
+    "place_translations(locale,name,summary,area,nearest_station,access_note,interest,seasonality,price_note,hours_note,cluster_name)",
   ].join(",");
 
   const params = new URLSearchParams({
     select,
-    "place_translations.locale": `eq.${locale}`,
     order: "prefecture.asc,id.asc",
   });
 
-  return supabaseGet<Place[]>(`places?${params.toString()}`);
+  const places = await supabaseGet<Place[]>(`places?${params.toString()}`);
+  const priority = [locale, "ru", "ja", "en"];
+  for (const place of places) {
+    place.place_translations.sort((a, b) => {
+      const aIndex = priority.indexOf(a.locale);
+      const bIndex = priority.indexOf(b.locale);
+      return (aIndex < 0 ? priority.length : aIndex) - (bIndex < 0 ? priority.length : bIndex);
+    });
+  }
+  return places;
 }
 
 export async function getRoutes(locale = "ru"): Promise<Route[]> {

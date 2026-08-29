@@ -43,7 +43,7 @@ function renderLoading(): void {
   `;
 }
 
-function renderPlaces(places: Place[], routeCount: number): void {
+function renderPlaces(places: Place[], routeCount: number, locale: "ru" | "ja" | "en"): void {
   const prefectureCount = new Set(places.map((place) => place.prefecture)).size;
 
   const cards = places
@@ -68,6 +68,7 @@ function renderPlaces(places: Place[], routeCount: number): void {
           <h2>${escapeHtml(placeName(place))}</h2>
           <p>${escapeHtml(placeSummary(place) || t?.interest || "Описание скоро появится.")}</p>
           <div class="chips">
+            ${place.visited_at ? `<span class="visited-chip">✓ Была здесь</span>` : ""}
             ${place.category ? `<span>${escapeHtml(place.category)}</span>` : ""}
             ${place.indoor_outdoor ? `<span>${escapeHtml(place.indoor_outdoor)}</span>` : ""}
             ${place.visit_minutes ? `<span>≈ ${place.visit_minutes} мин</span>` : ""}
@@ -85,6 +86,7 @@ function renderPlaces(places: Place[], routeCount: number): void {
     <main class="shell">
       <header class="hero">
         <div>
+          ${languageSwitch(locale)}
           <p class="eyebrow">わざわざ · WAZAWAZA</p>
           <h1>Места, ради которых<br>стоит свернуть с маршрута.</h1>
         </div>
@@ -590,12 +592,23 @@ function escapeHtml(value: string): string {
   );
 }
 
+function languageSwitch(activeLocale: "ru" | "ja" | "en"): string {
+  return `<nav class="language-switch" aria-label="Язык">${(["ru", "ja", "en"] as const)
+    .map((locale) => {
+      const url = new URL(location.href);
+      url.searchParams.set("lang", locale);
+      return `<a href="${escapeHtml(url.pathname + url.search)}"${locale === activeLocale ? ' aria-current="page"' : ""}>${locale.toUpperCase()}</a>`;
+    }).join("")}</nav>`;
+}
+
 async function start(): Promise<void> {
   renderLoading();
 
   try {
-    const [places, routes] = await Promise.all([getPlaces("ru"), getRoutes("ru")]);
-    renderPlaces(places, routes.length);
+    const requestedLocale = new URLSearchParams(location.search).get("lang");
+    const locale: "ru" | "ja" | "en" = requestedLocale === "ja" || requestedLocale === "en" ? requestedLocale : "ru";
+    const [places, routes] = await Promise.all([getPlaces(locale), getRoutes("ru")]);
+    renderPlaces(places, routes.length, locale);
   } catch (error) {
     renderError(error);
   }

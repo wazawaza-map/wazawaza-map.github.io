@@ -50,6 +50,26 @@ input {
   letter-spacing: .16em;
 }
 
+.language-switch {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 18px;
+}
+
+.language-switch a {
+  padding: 4px 7px;
+  border: 1px solid transparent;
+  color: inherit;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: .08em;
+  text-decoration: none;
+}
+
+.language-switch a[aria-current="page"] {
+  border-color: #262626;
+}
+
 h1,
 h2,
 p {
@@ -308,6 +328,20 @@ h1 {
 
 .leaflet-marker-icon.is-selected-marker {
   filter: hue-rotate(135deg) saturate(1.5) drop-shadow(0 3px 2px rgba(0, 0, 0, .35));
+}
+
+.leaflet-marker-icon.is-visited-marker {
+  filter: hue-rotate(245deg) saturate(1.6) brightness(.9);
+}
+
+.leaflet-marker-icon.is-visited-marker.is-selected-marker {
+  filter: hue-rotate(285deg) saturate(1.8) drop-shadow(0 3px 2px rgba(0, 0, 0, .4));
+}
+
+.visited-chip,
+.visited-popup {
+  color: #785018;
+  font-weight: 800;
 }
 
 .place-card.is-selected {
