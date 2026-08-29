@@ -69,9 +69,12 @@ button, input, select { font: inherit; }
 .admin-translation-panel[hidden] { display: none; }
 .admin-editor-map { height: 360px; margin-top: 4px; border: 1px solid #222; }
 .admin-editor__hint { margin: 10px 0; color: #625e56; font-size: 12px; }
-.admin-editor__footer { display: flex; gap: 10px; justify-content: flex-end; padding-top: 18px; border-top: 1px solid #222; }
+.admin-editor__footer { display: flex; gap: 16px; justify-content: space-between; padding-top: 18px; border-top: 1px solid #222; }
+.admin-editor__danger-actions, .admin-editor__save-actions { display: flex; gap: 10px; }
 .admin-editor__footer button { padding: 11px 18px; border: 1px solid #222; background: #222; color: #fff; cursor: pointer; }
 .admin-editor__footer button.secondary { background: transparent; color: #222; }
+.admin-editor__footer button.danger { border-color: #a0271e; background: transparent; color: #a0271e; }
+.admin-editor__footer button:disabled { cursor: wait; opacity: .55; }
 .admin-visited-control { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; align-items: center; margin: 4px 0 16px; padding: 16px; border: 1px solid #817c72; }
 .admin-editor form .admin-visited-control label { display: flex; margin: 0; align-items: center; }
 .admin-visited-control input[type="checkbox"] { width: 18px; height: 18px; }
@@ -87,5 +90,7 @@ button, input, select { font: inherit; }
   .admin-places-map { min-height: 65vh; }
   .admin-editor-overlay { padding: 0; }
   .admin-editor { min-height: 100vh; padding: 20px; border: 0; }
+  .admin-editor__footer { align-items: stretch; flex-direction: column; }
+  .admin-editor__danger-actions, .admin-editor__save-actions { display: grid; grid-template-columns: 1fr 1fr; }
   .admin-form-grid, .admin-visited-control { grid-template-columns: 1fr; }
 }

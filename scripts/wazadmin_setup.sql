@@ -40,3 +40,27 @@ drop policy if exists "wazadmins can insert place translations" on public.place_
 create policy "wazadmins can insert place translations"
 on public.place_translations for insert to authenticated
 with check ((auth.jwt() -> 'app_metadata' ->> 'role') = 'admin');
+
+-- Atomic permanent deletion for the admin UI. Related rows are removed first,
+-- so this works even when the original foreign keys were created without cascade.
+create or replace function public.delete_admin_place(target_place_id bigint)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  if (auth.jwt() -> 'app_metadata' ->> 'role') is distinct from 'admin' then
+    raise exception 'admin role required' using errcode = '42501';
+  end if;
+
+  delete from public.route_places where place_id = target_place_id;
+  delete from public.place_relations
+  where place_id = target_place_id or related_place_id = target_place_id;
+  delete from public.place_translations where place_id = target_place_id;
+  delete from public.places where id = target_place_id;
+end;
+$$;
+
+revoke all on function public.delete_admin_place(bigint) from public;
+grant execute on function public.delete_admin_place(bigint) to authenticated;

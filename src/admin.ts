@@ -181,6 +181,24 @@ async function upsertTranslation(
   if (!response.ok) throw new Error(`Supabase ${response.status}: ${await response.text()}`);
 }
 
+async function callAdminRpc(
+  session: AdminSession,
+  name: string,
+  values: Record<string, unknown>
+): Promise<void> {
+  const { url, key } = requireConfig();
+  const response = await fetch(`${url}/rest/v1/rpc/${name}`, {
+    method: "POST",
+    headers: {
+      apikey: key,
+      Authorization: `Bearer ${session.access_token}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(values),
+  });
+  if (!response.ok) throw new Error(`Supabase ${response.status}: ${await response.text()}`);
+}
+
 function renderLogin(message = ""): void {
   activeDashboardMap?.remove();
   activeDashboardMap = undefined;
@@ -406,8 +424,14 @@ function openPlaceEditor(session: AdminSession, place: AdminPlace, returnView: A
         <p class="admin-editor__hint">Перетащите маркер или введите координаты вручную. Статус: <strong>${escapeHtml(place.status)}</strong>.</p>
         <p id="editor-error" class="admin-error"></p>
         <div class="admin-editor__footer">
-          <button class="secondary" type="button" data-editor-cancel>Отмена</button>
-          <button type="submit">Сохранить</button>
+          <div class="admin-editor__danger-actions">
+            <button class="secondary" type="button" data-place-visibility>${place.status === "published" ? "Спрятать" : "Опубликовать"}</button>
+            <button class="danger" type="button" data-place-delete>Удалить</button>
+          </div>
+          <div class="admin-editor__save-actions">
+            <button class="secondary" type="button" data-editor-cancel>Отмена</button>
+            <button type="submit">Сохранить</button>
+          </div>
         </div>
       </form>
     </aside>`;
@@ -466,6 +490,42 @@ function openPlaceEditor(session: AdminSession, place: AdminPlace, returnView: A
   closeButton?.addEventListener("click", close);
   overlay.querySelector("[data-editor-cancel]")?.addEventListener("click", close);
   document.addEventListener("keydown", onKeydown);
+
+  overlay.querySelector<HTMLButtonElement>("[data-place-visibility]")?.addEventListener("click", async (event) => {
+    const button = event.currentTarget as HTMLButtonElement;
+    const error = form?.querySelector<HTMLElement>("#editor-error");
+    const nextStatus = place.status === "published" ? "draft" : "published";
+    button.disabled = true;
+    if (error) error.textContent = "";
+    try {
+      const activeQuery = document.querySelector<HTMLInputElement>("#admin-search")?.value ?? "";
+      await updateRows(session, `places?id=eq.${place.id}`, { status: nextStatus });
+      close();
+      await renderDashboard(session, activeQuery, returnView);
+    } catch (statusError) {
+      if (error) error.textContent = statusError instanceof Error ? statusError.message : String(statusError);
+      button.disabled = false;
+    }
+  });
+
+  overlay.querySelector<HTMLButtonElement>("[data-place-delete]")?.addEventListener("click", async (event) => {
+    const translation = place.place_translations.find((item) => item.locale === "ru") ?? place.place_translations[0];
+    const placeLabel = translation?.name ?? `Place #${place.id}`;
+    if (!window.confirm(`Удалить «${placeLabel}» навсегда? Это действие нельзя отменить.`)) return;
+    const button = event.currentTarget as HTMLButtonElement;
+    const error = form?.querySelector<HTMLElement>("#editor-error");
+    button.disabled = true;
+    if (error) error.textContent = "";
+    try {
+      const activeQuery = document.querySelector<HTMLInputElement>("#admin-search")?.value ?? "";
+      await callAdminRpc(session, "delete_admin_place", { target_place_id: place.id });
+      close();
+      await renderDashboard(session, activeQuery, returnView);
+    } catch (deleteError) {
+      if (error) error.textContent = deleteError instanceof Error ? deleteError.message : String(deleteError);
+      button.disabled = false;
+    }
+  });
 
   form?.addEventListener("submit", async (event) => {
     event.preventDefault();
