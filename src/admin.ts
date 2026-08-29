@@ -1,6 +1,7 @@
 import "./admin.css";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
+import "./leaflet-icons";
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL as string | undefined;
 const SUPABASE_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY as string | undefined;
