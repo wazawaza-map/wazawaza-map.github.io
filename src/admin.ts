@@ -43,8 +43,11 @@ type AdminPlace = {
   }>;
 };
 
+type AdminView = "list" | "map";
+
 const app = document.querySelector<HTMLDivElement>("#admin-app");
 if (!app) throw new Error("#admin-app not found");
+let activeDashboardMap: L.Map | undefined;
 
 function requireConfig(): { url: string; key: string } {
   if (!SUPABASE_URL || !SUPABASE_KEY) {
@@ -179,6 +182,8 @@ async function upsertTranslation(
 }
 
 function renderLogin(message = ""): void {
+  activeDashboardMap?.remove();
+  activeDashboardMap = undefined;
   app!.innerHTML = `
     <main class="admin-login">
       <form id="login-form" class="admin-login__card">
@@ -218,8 +223,11 @@ function renderLogin(message = ""): void {
 
 async function renderDashboard(
   session: AdminSession,
-  initialQuery = ""
+  initialQuery = "",
+  initialView: AdminView = "list"
 ): Promise<void> {
+  activeDashboardMap?.remove();
+  activeDashboardMap = undefined;
   app!.innerHTML = `<main class="admin-loading">Загружаю места…</main>`;
   try {
     const places = await getPlaces(session);
@@ -243,42 +251,106 @@ async function renderDashboard(
           <input id="admin-search" type="search" placeholder="Название, ID, префектура или город">
           <span id="admin-result-count">${places.length} записей</span>
         </section>
-        <div class="admin-table-wrap">
-          <table class="admin-table">
-            <thead><tr><th>Место</th><th>Расположение</th><th>Координаты</th><th>Статус</th><th></th></tr></thead>
-            <tbody id="places-body"></tbody>
-          </table>
-        </div>
+        <nav class="admin-view-tabs" aria-label="Представление мест">
+          <button type="button" data-admin-view="list" aria-pressed="${initialView === "list"}">Список</button>
+          <button type="button" data-admin-view="map" aria-pressed="${initialView === "map"}">Карта</button>
+        </nav>
+        <section data-admin-panel="list"${initialView === "list" ? "" : " hidden"}>
+          <div class="admin-table-wrap">
+            <table class="admin-table">
+              <thead><tr><th>Место</th><th>Расположение</th><th>Координаты</th><th>Статус</th><th></th></tr></thead>
+              <tbody id="places-body"></tbody>
+            </table>
+          </div>
+        </section>
+        <section data-admin-panel="map"${initialView === "map" ? "" : " hidden"}>
+          <p class="admin-map-hint">Нажмите на отметку, чтобы открыть редактор места.</p>
+          <div id="admin-places-map" class="admin-places-map"></div>
+        </section>
       </main>`;
 
     const body = document.querySelector<HTMLTableSectionElement>("#places-body");
     const search = document.querySelector<HTMLInputElement>("#admin-search");
     const resultCount = document.querySelector<HTMLElement>("#admin-result-count");
+    const mapElement = document.querySelector<HTMLElement>("#admin-places-map");
+    let activeView: AdminView = initialView;
+    let placesMap: L.Map | undefined;
+    let markerLayer: L.LayerGroup | undefined;
 
-    function renderRows(query = ""): void {
+    function filteredPlaces(query = ""): AdminPlace[] {
       const normalized = query.normalize("NFKC").toLocaleLowerCase("ru").trim();
-      const filtered = places.filter((place) => {
+      return places.filter((place) => {
         const translation = place.place_translations.find((item) => item.locale === "ru") ?? place.place_translations[0];
         return !normalized || [place.id, place.legacy_id, translation?.name, translation?.area, place.prefecture, place.municipality, place.status, categoryLabel(place.category, "ru"), categoryLabel(place.category, "ja"), categoryLabel(place.category, "en")]
           .filter(Boolean).join(" ").normalize("NFKC").toLocaleLowerCase("ru").includes(normalized);
       });
+    }
+
+    function initializeMap(): void {
+      if (placesMap || !mapElement) return;
+      placesMap = L.map(mapElement, { center: [36.2, 138.2], zoom: 5, minZoom: 4 });
+      activeDashboardMap = placesMap;
+      L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+        maxZoom: 19,
+        attribution: "&copy; OpenStreetMap contributors",
+      }).addTo(placesMap);
+      markerLayer = L.layerGroup().addTo(placesMap);
+      renderMapMarkers(filteredPlaces(search?.value));
+      requestAnimationFrame(() => placesMap?.invalidateSize());
+    }
+
+    function renderMapMarkers(filtered: AdminPlace[]): void {
+      if (!placesMap || !markerLayer) return;
+      markerLayer.clearLayers();
+      for (const place of filtered) {
+        const translation = place.place_translations.find((item) => item.locale === "ru") ?? place.place_translations[0];
+        L.marker([place.latitude, place.longitude], {
+          icon: adminMarkerIcon(place),
+          title: translation?.name ?? `Place #${place.id}`,
+        }).on("click", () => openPlaceEditor(session, place, activeView)).addTo(markerLayer);
+      }
+    }
+
+    function renderRows(query = ""): void {
+      const filtered = filteredPlaces(query);
       if (resultCount) resultCount.textContent = `${filtered.length} записей`;
       if (body) body.innerHTML = filtered.map(placeRow).join("");
+      renderMapMarkers(filtered);
+    }
+
+    function switchView(view: AdminView): void {
+      activeView = view;
+      document.querySelectorAll<HTMLButtonElement>("[data-admin-view]").forEach((button) => {
+        button.setAttribute("aria-pressed", String(button.dataset.adminView === view));
+      });
+      document.querySelectorAll<HTMLElement>("[data-admin-panel]").forEach((panel) => {
+        panel.hidden = panel.dataset.adminPanel !== view;
+      });
+      if (view === "map") initializeMap();
+      requestAnimationFrame(() => placesMap?.invalidateSize());
     }
 
     if (search) search.value = initialQuery;
     renderRows(initialQuery);
     search?.addEventListener("input", () => renderRows(search.value));
+    document.querySelector(".admin-view-tabs")?.addEventListener("click", (event) => {
+      const button = (event.target as HTMLElement).closest<HTMLButtonElement>("[data-admin-view]");
+      const view = button?.dataset.adminView;
+      if (view === "list" || view === "map") switchView(view);
+    });
     body?.addEventListener("click", (event) => {
       const button = (event.target as HTMLElement).closest<HTMLButtonElement>("[data-edit-place]");
       if (!button) return;
       const place = places.find((item) => item.id === Number(button.dataset.editPlace));
-      if (place) openPlaceEditor(session, place);
+      if (place) openPlaceEditor(session, place, activeView);
     });
     document.querySelector("#logout")?.addEventListener("click", async () => {
+      placesMap?.remove();
+      activeDashboardMap = undefined;
       saveSession(null);
       renderLogin();
     });
+    if (initialView === "map") initializeMap();
   } catch (error) {
     saveSession(null);
     renderLogin(error instanceof Error ? error.message : String(error));
@@ -299,7 +371,7 @@ function placeRow(place: AdminPlace): string {
   </tr>`;
 }
 
-function openPlaceEditor(session: AdminSession, place: AdminPlace): void {
+function openPlaceEditor(session: AdminSession, place: AdminPlace, returnView: AdminView = "list"): void {
   const overlay = document.createElement("div");
   overlay.className = "admin-editor-overlay";
   overlay.innerHTML = `
@@ -362,7 +434,10 @@ function openPlaceEditor(session: AdminSession, place: AdminPlace): void {
       maxZoom: 19,
       attribution: "&copy; OpenStreetMap contributors",
     }).addTo(editorMap);
-    const marker = L.marker([place.latitude, place.longitude], { draggable: true }).addTo(editorMap);
+    const marker = L.marker([place.latitude, place.longitude], {
+      draggable: true,
+      icon: adminMarkerIcon(place, true),
+    }).addTo(editorMap);
     marker.on("dragend", () => {
       const point = marker.getLatLng();
       if (latitudeInput) latitudeInput.value = point.lat.toFixed(7);
@@ -432,11 +507,27 @@ function openPlaceEditor(session: AdminSession, place: AdminPlace): void {
         });
       }
       close();
-      await renderDashboard(session, activeQuery);
+      await renderDashboard(session, activeQuery, returnView);
     } catch (saveError) {
       if (error) error.textContent = saveError instanceof Error ? saveError.message : String(saveError);
       if (submit) submit.disabled = false;
     }
+  });
+}
+
+function adminMarkerIcon(place: AdminPlace, editor = false): L.DivIcon {
+  const classes = [
+    "admin-place-marker",
+    `admin-place-marker--${place.status}`,
+    place.visited_at ? "admin-place-marker--visited" : "",
+    editor ? "admin-place-marker--editor" : "",
+  ].filter(Boolean).join(" ");
+  const size = editor ? 24 : 16;
+  return L.divIcon({
+    className: "admin-place-marker-wrap",
+    html: `<span class="${classes}"></span>`,
+    iconSize: [size, size],
+    iconAnchor: [size / 2, size / 2],
   });
 }
 
