@@ -39,6 +39,14 @@ To enable access:
 The browser uses only the publishable key. Admin access requires the
 `app_metadata.role = admin` JWT claim and matching RLS policies.
 
+## Categories
+
+Places use a controlled category list with Russian, Japanese and English
+labels. Run `scripts/categories_setup.sql` once in the Supabase SQL Editor to
+normalize legacy category values and add the database constraint. After that,
+categories are edited from the select in `/wazadmin/`; no category translation
+rows are required.
+
 ## Translation drafts
 
 Generate a small review batch locally (no Supabase writes):

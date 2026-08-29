@@ -9,6 +9,7 @@ import {
 } from "./state";
 import { openPlaceDrawer, type PlaceDrawer } from "./drawer";
 import { prefectureLabel } from "./prefectures";
+import { CATEGORIES, categoryLabel, normalizeCategory } from "./categories";
 
 const app = document.querySelector<HTMLDivElement>("#app");
 
@@ -44,6 +45,11 @@ function renderLoading(): void {
 }
 
 function renderPlaces(places: Place[], routeCount: number, locale: "ru" | "ja" | "en"): void {
+  const categoryCopy = {
+    ru: { label: "Категория", all: "Все категории" },
+    ja: { label: "カテゴリー", all: "すべてのカテゴリー" },
+    en: { label: "Category", all: "All categories" },
+  }[locale];
   const prefectureCount = new Set(places.map((place) => place.prefecture)).size;
 
   const cards = places
@@ -69,7 +75,7 @@ function renderPlaces(places: Place[], routeCount: number, locale: "ru" | "ja" |
           <p>${escapeHtml(placeSummary(place) || t?.interest || "Описание скоро появится.")}</p>
           <div class="chips">
             ${place.visited_at ? `<span class="visited-chip">✓ Была здесь</span>` : ""}
-            ${place.category ? `<span>${escapeHtml(place.category)}</span>` : ""}
+            ${place.category ? `<span>${escapeHtml(categoryLabel(place.category, locale))}</span>` : ""}
             ${place.indoor_outdoor ? `<span>${escapeHtml(place.indoor_outdoor)}</span>` : ""}
             ${place.visit_minutes ? `<span>≈ ${place.visit_minutes} мин</span>` : ""}
           </div>
@@ -81,6 +87,12 @@ function renderPlaces(places: Place[], routeCount: number, locale: "ru" | "ja" |
   const prefectures = Array.from(
     new Set(places.map((place) => place.prefecture))
   ).sort((a, b) => prefectureLabel(a).localeCompare(prefectureLabel(b), "ru"));
+  const availableCategoryIds = new Set(
+    places.map((place) => normalizeCategory(place.category)).filter(Boolean)
+  );
+  const categories = CATEGORIES.filter((category) =>
+    availableCategoryIds.has(category.id)
+  );
 
   app!.innerHTML = `
     <main class="shell">
@@ -134,6 +146,15 @@ function renderPlaces(places: Place[], routeCount: number, locale: "ru" | "ja" |
                     .join("")}
                 </select>
               </label>
+              <label>
+                <span>${categoryCopy.label}</span>
+                <select id="category-filter">
+                  <option value="">${categoryCopy.all}</option>
+                  ${categories.map((category) =>
+                    `<option value="${category.id}">${escapeHtml(category[locale])}</option>`
+                  ).join("")}
+                </select>
+              </label>
               <label class="adjacent-filter">
                 <input id="adjacent-filter" type="checkbox">
                 <span>Показывать соседние префектуры</span>
@@ -170,6 +191,9 @@ function renderPlaces(places: Place[], routeCount: number, locale: "ru" | "ja" |
   const prefectureFilter =
   document.querySelector<HTMLSelectElement>("#prefecture-filter");
 
+  const categoryFilter =
+    document.querySelector<HTMLSelectElement>("#category-filter");
+
   const matchingCount =
     document.querySelector<HTMLElement>("#matching-count");
 
@@ -201,6 +225,7 @@ function renderPlaces(places: Place[], routeCount: number, locale: "ru" | "ja" |
   const initialParams = new URLSearchParams(location.search);
   const requestedPlace = initialParams.get("place");
   const requestedPrefecture = initialParams.get("pref") ?? "";
+  const requestedCategory = initialParams.get("cat") ?? "";
   const requestedQuery = initialParams.get("q") ?? "";
   const requestedAdjacent = initialParams.get("adjacent") === "1";
   const initialPlace = requestedPlace
@@ -220,6 +245,9 @@ function renderPlaces(places: Place[], routeCount: number, locale: "ru" | "ja" |
       query: requestedQuery,
       includeAdjacent:
         prefectures.includes(requestedPrefecture) && requestedAdjacent,
+      category: categories.some((category) => category.id === requestedCategory)
+        ? requestedCategory
+        : "",
     },
   };
 
@@ -232,6 +260,10 @@ function renderPlaces(places: Place[], routeCount: number, locale: "ru" | "ja" |
 
   if (prefectureFilter) {
     prefectureFilter.value = state.filters.prefecture;
+  }
+
+  if (categoryFilter) {
+    categoryFilter.value = state.filters.category;
   }
 
   if (searchInput) {
@@ -284,6 +316,7 @@ function renderPlaces(places: Place[], routeCount: number, locale: "ru" | "ja" |
     if (filtersReset) {
       filtersReset.disabled = !(
         state.filters.prefecture ||
+        state.filters.category ||
         state.filters.query.trim() ||
         state.filters.includeAdjacent
       );
@@ -342,6 +375,12 @@ function renderPlaces(places: Place[], routeCount: number, locale: "ru" | "ja" |
       url.searchParams.delete("q");
     }
 
+    if (state.filters.category) {
+      url.searchParams.set("cat", state.filters.category);
+    } else {
+      url.searchParams.delete("cat");
+    }
+
 
     if (state.filters.prefecture && state.filters.includeAdjacent) {
       url.searchParams.set("adjacent", "1");
@@ -398,6 +437,7 @@ function renderPlaces(places: Place[], routeCount: number, locale: "ru" | "ja" |
     }
 
     activeDrawer = openPlaceDrawer(place, {
+      locale,
       returnFocusTo,
       onClose: () => {
         activeDrawer = undefined;
@@ -428,6 +468,19 @@ function renderPlaces(places: Place[], routeCount: number, locale: "ru" | "ja" |
     applyFilters(true);
   });
 
+  categoryFilter?.addEventListener("change", () => {
+    clearSelectionForFilters();
+    state = {
+      ...state,
+      filters: {
+        ...state.filters,
+        category: categoryFilter.value,
+      },
+    };
+    updateUrl();
+    applyFilters(true);
+  });
+
   adjacentFilter?.addEventListener("change", () => {
     clearSelectionForFilters();
     state = {
@@ -446,9 +499,10 @@ function renderPlaces(places: Place[], routeCount: number, locale: "ru" | "ja" |
     clearSelectionForFilters();
     state = {
       ...state,
-      filters: { prefecture: "", query: "", includeAdjacent: false },
+      filters: { prefecture: "", query: "", includeAdjacent: false, category: "" },
     };
     if (prefectureFilter) prefectureFilter.value = "";
+    if (categoryFilter) categoryFilter.value = "";
     if (searchInput) searchInput.value = "";
     updateUrl();
     applyFilters(true);

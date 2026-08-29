@@ -1,9 +1,11 @@
 import type { Place } from "./types";
 import { prefectureLabel } from "./prefectures";
+import { categoryLabel, type AppLocale } from "./categories";
 
 type DrawerOptions = {
   onClose: () => void;
   returnFocusTo?: HTMLElement | null;
+  locale?: AppLocale;
 };
 
 export type PlaceDrawer = {
@@ -25,7 +27,7 @@ export function openPlaceDrawer(
       aria-labelledby="place-drawer-title"
     >
       <button class="place-drawer__close" type="button" aria-label="Закрыть">×</button>
-      <p class="eyebrow">${escapeHtml(place.category ?? "Место")}</p>
+      <p class="eyebrow">${escapeHtml(categoryLabel(place.category, options.locale) || "Место")}</p>
       <h2 id="place-drawer-title">${escapeHtml(translation?.name ?? "Без названия")}</h2>
       <p class="place-drawer__location">${escapeHtml(
         [translation?.area, prefectureLabel(place.prefecture)].filter(Boolean).join(" · ")

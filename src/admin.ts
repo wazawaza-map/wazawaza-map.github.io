@@ -2,6 +2,7 @@ import "./admin.css";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import "./leaflet-icons";
+import { CATEGORIES, categoryLabel, normalizeCategory } from "./categories";
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL as string | undefined;
 const SUPABASE_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY as string | undefined;
@@ -258,7 +259,7 @@ async function renderDashboard(
       const normalized = query.normalize("NFKC").toLocaleLowerCase("ru").trim();
       const filtered = places.filter((place) => {
         const translation = place.place_translations.find((item) => item.locale === "ru") ?? place.place_translations[0];
-        return !normalized || [place.id, place.legacy_id, translation?.name, translation?.area, place.prefecture, place.municipality, place.status]
+        return !normalized || [place.id, place.legacy_id, translation?.name, translation?.area, place.prefecture, place.municipality, place.status, categoryLabel(place.category, "ru"), categoryLabel(place.category, "ja"), categoryLabel(place.category, "en")]
           .filter(Boolean).join(" ").normalize("NFKC").toLocaleLowerCase("ru").includes(normalized);
       });
       if (resultCount) resultCount.textContent = `${filtered.length} записей`;
@@ -287,7 +288,7 @@ async function renderDashboard(
 function placeRow(place: AdminPlace): string {
   const translation = place.place_translations.find((item) => item.locale === "ru") ?? place.place_translations[0];
   return `<tr>
-    <td><strong>${escapeHtml(translation?.name ?? "Без названия")}</strong><small>#${place.id} · ${escapeHtml(place.legacy_id ?? "без legacy ID")}</small></td>
+    <td><strong>${escapeHtml(translation?.name ?? "Без названия")}</strong><small>${escapeHtml(categoryLabel(place.category))} · #${place.id} · ${escapeHtml(place.legacy_id ?? "без legacy ID")}</small></td>
     <td>${escapeHtml([translation?.area, place.municipality, place.prefecture].filter(Boolean).join(" · "))}</td>
     <td><code>${place.latitude}, ${place.longitude}</code></td>
     <td><span class="admin-status admin-status--${escapeHtml(place.status)}">${escapeHtml(place.status)}</span></td>
@@ -311,7 +312,7 @@ function openPlaceEditor(session: AdminSession, place: AdminPlace): void {
         <div class="admin-form-grid">
           ${field("Префектура", "prefecture", place.prefecture, true)}
           ${field("Муниципалитет", "municipality", place.municipality ?? "")}
-          ${field("Категория", "category", place.category ?? "")}
+          ${categorySelect(place.category)}
         </div>
         <section class="admin-translations">
           <div class="admin-translation-tabs" role="tablist">
@@ -409,7 +410,7 @@ function openPlaceEditor(session: AdminSession, place: AdminPlace): void {
       await updateRows(session, `places?id=eq.${place.id}`, {
         prefecture: required(data, "prefecture"),
         municipality: optional(data, "municipality"),
-        category: optional(data, "category"),
+        category: normalizeCategory(required(data, "category")),
         google_maps_url: optionalUrl(data, "google_maps_url"),
         website_url: optionalUrl(data, "website_url"),
         latitude,
@@ -441,6 +442,13 @@ function openPlaceEditor(session: AdminSession, place: AdminPlace): void {
 
 function field(label: string, name: string, value: string, required = false, type = "text", step?: string): string {
   return `<label>${escapeHtml(label)}<input name="${escapeHtml(name)}" type="${escapeHtml(type)}" value="${escapeHtml(value)}"${required ? " required" : ""}${step ? ` step="${escapeHtml(step)}"` : ""}></label>`;
+}
+
+function categorySelect(value: string | null): string {
+  const selected = normalizeCategory(value) ?? "other";
+  return `<label>Категория<select name="category" required>${CATEGORIES.map((category) =>
+    `<option value="${category.id}"${category.id === selected ? " selected" : ""}>${escapeHtml(category.ru)} · ${escapeHtml(category.ja)} · ${escapeHtml(category.en)}</option>`
+  ).join("")}</select></label>`;
 }
 
 function textarea(label: string, name: string, value: string): string {

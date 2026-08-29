@@ -33,6 +33,7 @@ DEFAULT_SOURCE = (
 BATCH_SIZE = 100
 OVERRIDES_PATH = Path(__file__).with_name("coordinate_overrides.json")
 COORDINATE_OVERRIDES = json.loads(OVERRIDES_PATH.read_text(encoding="utf-8"))
+CATEGORY_MAP = json.loads(Path(__file__).with_name("category_mapping.json").read_text(encoding="utf-8"))
 
 
 def nested(obj: dict[str, Any], *keys: str, default: Any = None) -> Any:
@@ -196,7 +197,7 @@ def make_place_rows(
                 "municipality": override.get("municipality", current.get("municipality")),
                 "latitude": override.get("latitude", nested(place, "location", "lat")),
                 "longitude": override.get("longitude", nested(place, "location", "lng")),
-                "category": place.get("category"),
+                "category": CATEGORY_MAP.get(place.get("category"), "other"),
                 "google_maps_url": override.get("google_maps_url", nested(place, "links", "googleMaps")),
                 "website_url": override.get("website_url", nested(place, "links", "officialOrSource")),
                 "status": override.get("status", current.get("status") or "draft"),

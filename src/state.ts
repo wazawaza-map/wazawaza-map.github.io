@@ -1,10 +1,12 @@
 import type { Place } from "./types";
 import { adjacentPrefectures } from "./prefectures";
+import { categoryLabel, normalizeCategory } from "./categories";
 
 export type PlaceFilters = {
   prefecture: string;
   query: string;
   includeAdjacent: boolean;
+  category: string;
 };
 
 export type AppState = {
@@ -19,6 +21,7 @@ export function createInitialState(places: Place[]): AppState {
       prefecture: "",
       query: "",
       includeAdjacent: false,
+      category: "",
     },
     viewportPlaceIds: new Set(places.map((place) => place.id)),
     selectedPlaceId: null,
@@ -44,6 +47,10 @@ export function getMatchingPlaces(
       return false;
     }
 
+    if (filters.category && normalizeCategory(place.category) !== filters.category) {
+      return false;
+    }
+
     if (!query) return true;
 
     const translation = place.place_translations[0];
@@ -57,6 +64,7 @@ export function getMatchingPlaces(
         place.prefecture,
         place.municipality,
         place.category,
+        categoryLabel(place.category),
         ...place.tags,
       ]
         .filter(Boolean)
