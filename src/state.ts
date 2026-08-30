@@ -7,6 +7,7 @@ export type PlaceFilters = {
   query: string;
   includeAdjacent: boolean;
   category: string;
+  visitStatus: "" | "visited" | "unvisited";
 };
 
 export type AppState = {
@@ -22,6 +23,7 @@ export function createInitialState(places: Place[]): AppState {
       query: "",
       includeAdjacent: false,
       category: "",
+      visitStatus: "",
     },
     viewportPlaceIds: new Set(places.map((place) => place.id)),
     selectedPlaceId: null,
@@ -50,6 +52,10 @@ export function getMatchingPlaces(
     if (filters.category && normalizeCategory(place.category) !== filters.category) {
       return false;
     }
+
+    const wasVisited = place.visited || Boolean(place.visited_at);
+    if (filters.visitStatus === "visited" && !wasVisited) return false;
+    if (filters.visitStatus === "unvisited" && wasVisited) return false;
 
     if (!query) return true;
 

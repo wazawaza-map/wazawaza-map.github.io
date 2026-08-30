@@ -51,6 +51,11 @@ function renderPlaces(places: Place[], routeCount: number, locale: "ru" | "ja" |
     ja: { label: "カテゴリー", all: "すべてのカテゴリー" },
     en: { label: "Category", all: "All categories" },
   }[locale];
+  const visitCopy = {
+    ru: { label: "Посещение", all: "Все места", visited: "Только была", unvisited: "Только не была" },
+    ja: { label: "訪問", all: "すべて", visited: "訪問済みのみ", unvisited: "未訪問のみ" },
+    en: { label: "Visit", all: "All places", visited: "Visited only", unvisited: "Not visited only" },
+  }[locale];
   const prefectureCount = new Set(places.map((place) => place.prefecture)).size;
 
   const cards = places
@@ -156,6 +161,14 @@ function renderPlaces(places: Place[], routeCount: number, locale: "ru" | "ja" |
                   ).join("")}
                 </select>
               </label>
+              <label>
+                <span>${visitCopy.label}</span>
+                <select id="visit-filter">
+                  <option value="">${visitCopy.all}</option>
+                  <option value="visited">${visitCopy.visited}</option>
+                  <option value="unvisited">${visitCopy.unvisited}</option>
+                </select>
+              </label>
               <label class="adjacent-filter">
                 <input id="adjacent-filter" type="checkbox">
                 <span>Показывать соседние префектуры</span>
@@ -195,6 +208,9 @@ function renderPlaces(places: Place[], routeCount: number, locale: "ru" | "ja" |
   const categoryFilter =
     document.querySelector<HTMLSelectElement>("#category-filter");
 
+  const visitFilter =
+    document.querySelector<HTMLSelectElement>("#visit-filter");
+
   const matchingCount =
     document.querySelector<HTMLElement>("#matching-count");
 
@@ -227,6 +243,7 @@ function renderPlaces(places: Place[], routeCount: number, locale: "ru" | "ja" |
   const requestedPlace = initialParams.get("place");
   const requestedPrefecture = initialParams.get("pref") ?? "";
   const requestedCategory = initialParams.get("cat") ?? "";
+  const requestedVisitStatus = initialParams.get("visit") ?? "";
   const requestedQuery = initialParams.get("q") ?? "";
   const requestedAdjacent = initialParams.get("adjacent") === "1";
   const initialPlace = requestedPlace
@@ -249,6 +266,9 @@ function renderPlaces(places: Place[], routeCount: number, locale: "ru" | "ja" |
       category: categories.some((category) => category.id === requestedCategory)
         ? requestedCategory
         : "",
+      visitStatus: requestedVisitStatus === "visited" || requestedVisitStatus === "unvisited"
+        ? requestedVisitStatus
+        : "",
     },
   };
 
@@ -265,6 +285,10 @@ function renderPlaces(places: Place[], routeCount: number, locale: "ru" | "ja" |
 
   if (categoryFilter) {
     categoryFilter.value = state.filters.category;
+  }
+
+  if (visitFilter) {
+    visitFilter.value = state.filters.visitStatus;
   }
 
   if (searchInput) {
@@ -318,6 +342,7 @@ function renderPlaces(places: Place[], routeCount: number, locale: "ru" | "ja" |
       filtersReset.disabled = !(
         state.filters.prefecture ||
         state.filters.category ||
+        state.filters.visitStatus ||
         state.filters.query.trim() ||
         state.filters.includeAdjacent
       );
@@ -380,6 +405,12 @@ function renderPlaces(places: Place[], routeCount: number, locale: "ru" | "ja" |
       url.searchParams.set("cat", state.filters.category);
     } else {
       url.searchParams.delete("cat");
+    }
+
+    if (state.filters.visitStatus) {
+      url.searchParams.set("visit", state.filters.visitStatus);
+    } else {
+      url.searchParams.delete("visit");
     }
 
 
@@ -482,6 +513,21 @@ function renderPlaces(places: Place[], routeCount: number, locale: "ru" | "ja" |
     applyFilters(true);
   });
 
+  visitFilter?.addEventListener("change", () => {
+    clearSelectionForFilters();
+    state = {
+      ...state,
+      filters: {
+        ...state.filters,
+        visitStatus: visitFilter.value === "visited" || visitFilter.value === "unvisited"
+          ? visitFilter.value
+          : "",
+      },
+    };
+    updateUrl();
+    applyFilters(true);
+  });
+
   adjacentFilter?.addEventListener("change", () => {
     clearSelectionForFilters();
     state = {
@@ -500,10 +546,11 @@ function renderPlaces(places: Place[], routeCount: number, locale: "ru" | "ja" |
     clearSelectionForFilters();
     state = {
       ...state,
-      filters: { prefecture: "", query: "", includeAdjacent: false, category: "" },
+      filters: { prefecture: "", query: "", includeAdjacent: false, category: "", visitStatus: "" },
     };
     if (prefectureFilter) prefectureFilter.value = "";
     if (categoryFilter) categoryFilter.value = "";
+    if (visitFilter) visitFilter.value = "";
     if (searchInput) searchInput.value = "";
     updateUrl();
     applyFilters(true);

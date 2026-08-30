@@ -45,6 +45,7 @@ type AdminPlace = {
 };
 
 type AdminView = "list" | "map";
+type AdminMapState = { center: [number, number]; zoom: number };
 
 const app = document.querySelector<HTMLDivElement>("#admin-app");
 if (!app) throw new Error("#admin-app not found");
@@ -254,7 +255,8 @@ function renderLogin(message = ""): void {
 async function renderDashboard(
   session: AdminSession,
   initialQuery = "",
-  initialView: AdminView = "list"
+  initialView: AdminView = "list",
+  initialMapState?: AdminMapState
 ): Promise<void> {
   activeDashboardMap?.remove();
   activeDashboardMap = undefined;
@@ -318,7 +320,11 @@ async function renderDashboard(
 
     function initializeMap(): void {
       if (placesMap || !mapElement) return;
-      placesMap = L.map(mapElement, { center: [36.2, 138.2], zoom: 5, minZoom: 4 });
+      placesMap = L.map(mapElement, {
+        center: initialMapState?.center ?? [36.2, 138.2],
+        zoom: initialMapState?.zoom ?? 5,
+        minZoom: 4,
+      });
       activeDashboardMap = placesMap;
       L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
         maxZoom: 19,
@@ -329,6 +335,12 @@ async function renderDashboard(
       requestAnimationFrame(() => placesMap?.invalidateSize());
     }
 
+    function currentMapState(): AdminMapState | undefined {
+      if (!placesMap) return initialMapState;
+      const center = placesMap.getCenter();
+      return { center: [center.lat, center.lng], zoom: placesMap.getZoom() };
+    }
+
     function renderMapMarkers(filtered: AdminPlace[]): void {
       if (!placesMap || !markerLayer) return;
       markerLayer.clearLayers();
@@ -337,7 +349,7 @@ async function renderDashboard(
         L.marker([place.latitude, place.longitude], {
           icon: adminMarkerIcon(place),
           title: translation?.name ?? `Place #${place.id}`,
-        }).on("click", () => openPlaceEditor(session, place, activeView)).addTo(markerLayer);
+        }).on("click", () => openPlaceEditor(session, place, activeView, currentMapState())).addTo(markerLayer);
       }
     }
 
@@ -372,7 +384,7 @@ async function renderDashboard(
       const button = (event.target as HTMLElement).closest<HTMLButtonElement>("[data-edit-place]");
       if (!button) return;
       const place = places.find((item) => item.id === Number(button.dataset.editPlace));
-      if (place) openPlaceEditor(session, place, activeView);
+      if (place) openPlaceEditor(session, place, activeView, currentMapState());
     });
     document.querySelector("#logout")?.addEventListener("click", async () => {
       placesMap?.remove();
@@ -401,7 +413,12 @@ function placeRow(place: AdminPlace): string {
   </tr>`;
 }
 
-function openPlaceEditor(session: AdminSession, place: AdminPlace, returnView: AdminView = "list"): void {
+function openPlaceEditor(
+  session: AdminSession,
+  place: AdminPlace,
+  returnView: AdminView = "list",
+  returnMapState?: AdminMapState
+): void {
   const overlay = document.createElement("div");
   overlay.className = "admin-editor-overlay";
   overlay.innerHTML = `
@@ -513,7 +530,7 @@ function openPlaceEditor(session: AdminSession, place: AdminPlace, returnView: A
       const activeQuery = document.querySelector<HTMLInputElement>("#admin-search")?.value ?? "";
       await updateRows(session, `places?id=eq.${place.id}`, { status: nextStatus });
       close();
-      await renderDashboard(session, activeQuery, returnView);
+      await renderDashboard(session, activeQuery, returnView, returnMapState);
     } catch (statusError) {
       if (error) error.textContent = statusError instanceof Error ? statusError.message : String(statusError);
       button.disabled = false;
@@ -532,7 +549,7 @@ function openPlaceEditor(session: AdminSession, place: AdminPlace, returnView: A
       const activeQuery = document.querySelector<HTMLInputElement>("#admin-search")?.value ?? "";
       await callAdminRpc(session, "delete_admin_place", { target_place_id: place.id });
       close();
-      await renderDashboard(session, activeQuery, returnView);
+      await renderDashboard(session, activeQuery, returnView, returnMapState);
     } catch (deleteError) {
       if (error) error.textContent = deleteError instanceof Error ? deleteError.message : String(deleteError);
       button.disabled = false;
@@ -580,7 +597,7 @@ function openPlaceEditor(session: AdminSession, place: AdminPlace, returnView: A
         });
       }
       close();
-      await renderDashboard(session, activeQuery, returnView);
+      await renderDashboard(session, activeQuery, returnView, returnMapState);
     } catch (saveError) {
       if (error) error.textContent = saveError instanceof Error ? saveError.message : String(saveError);
       if (submit) submit.disabled = false;
