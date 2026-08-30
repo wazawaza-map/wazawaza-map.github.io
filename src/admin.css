@@ -69,6 +69,7 @@ button, input, select { font: inherit; }
 .admin-translation-panel[hidden] { display: none; }
 .admin-editor-map { height: 360px; margin-top: 4px; border: 1px solid #222; }
 .admin-editor__hint { margin: 10px 0; color: #625e56; font-size: 12px; }
+.admin-geocode-status { min-height: 20px; margin: 8px 0; color: #236038; font-size: 12px; font-weight: 700; }
 .admin-editor__footer { display: flex; gap: 16px; justify-content: space-between; padding-top: 18px; border-top: 1px solid #222; }
 .admin-editor__danger-actions, .admin-editor__save-actions { display: flex; gap: 10px; }
 .admin-editor__footer button { padding: 11px 18px; border: 1px solid #222; background: #222; color: #fff; cursor: pointer; }

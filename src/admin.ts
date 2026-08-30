@@ -50,6 +50,7 @@ type AdminMapState = { center: [number, number]; zoom: number };
 const app = document.querySelector<HTMLDivElement>("#admin-app");
 if (!app) throw new Error("#admin-app not found");
 let activeDashboardMap: L.Map | undefined;
+let municipalityDirectoryPromise: Promise<Map<string, { prefecture: string; municipality: string }>> | undefined;
 
 function requireConfig(): { url: string; key: string } {
   if (!SUPABASE_URL || !SUPABASE_KEY) {
@@ -450,7 +451,9 @@ function openPlaceEditor(
           ${field("Дата посещения (необязательно)", "visited_at", place.visited_at ?? "", false, "date")}
         </div>
         <div id="admin-editor-map" class="admin-editor-map"></div>
-        <p class="admin-editor__hint">Перетащите маркер или введите координаты вручную. Статус: <strong>${escapeHtml(place.status)}</strong>.</p>
+        <p class="admin-editor__hint">Перетащите маркер или введите координаты вручную. Префектура и муниципалитет обновятся автоматически; переведённое поле «Район» останется без изменений.</p>
+        <p id="admin-geocode-status" class="admin-geocode-status" aria-live="polite"></p>
+        <p class="admin-editor__hint">Статус публикации: <strong>${escapeHtml(place.status)}</strong>.</p>
         <p id="editor-error" class="admin-error"></p>
         <div class="admin-editor__footer">
           <div class="admin-editor__danger-actions">
@@ -470,8 +473,33 @@ function openPlaceEditor(
   const closeButton = overlay.querySelector<HTMLButtonElement>(".admin-editor__close");
   const latitudeInput = form?.elements.namedItem("latitude") as HTMLInputElement | null;
   const longitudeInput = form?.elements.namedItem("longitude") as HTMLInputElement | null;
+  const prefectureInput = form?.elements.namedItem("prefecture") as HTMLInputElement | null;
+  const municipalityInput = form?.elements.namedItem("municipality") as HTMLInputElement | null;
+  const geocodeStatus = overlay.querySelector<HTMLElement>("#admin-geocode-status");
   const mapElement = overlay.querySelector<HTMLElement>("#admin-editor-map");
   let editorMap: L.Map | undefined;
+  let geocodeRequest = 0;
+
+  async function updateAdministrativeArea(latitude: number, longitude: number): Promise<void> {
+    const request = ++geocodeRequest;
+    if (geocodeStatus) geocodeStatus.textContent = "Определяю административный адрес…";
+    try {
+      const result = await reverseGeocodeJapan(latitude, longitude);
+      if (request !== geocodeRequest) return;
+      if (!result) {
+        if (geocodeStatus) geocodeStatus.textContent = "Административный адрес не найден; проверьте поля вручную.";
+        return;
+      }
+      if (prefectureInput) prefectureInput.value = result.prefecture;
+      if (municipalityInput) municipalityInput.value = result.municipality;
+      if (geocodeStatus) {
+        geocodeStatus.textContent = `Найдено: ${result.prefecture} · ${result.municipality}${result.locality ? ` · ${result.locality}` : ""}`;
+      }
+    } catch (geocodeError) {
+      if (request !== geocodeRequest) return;
+      if (geocodeStatus) geocodeStatus.textContent = "Не удалось проверить адрес; префектуру и муниципалитет можно указать вручную.";
+    }
+  }
 
   overlay.querySelector(".admin-translation-tabs")?.addEventListener("click", (event) => {
     const button = (event.target as HTMLElement).closest<HTMLButtonElement>("[data-translation-tab]");
@@ -495,6 +523,7 @@ function openPlaceEditor(
       const point = marker.getLatLng();
       if (latitudeInput) latitudeInput.value = point.lat.toFixed(7);
       if (longitudeInput) longitudeInput.value = point.lng.toFixed(7);
+      void updateAdministrativeArea(point.lat, point.lng);
     });
     function syncMarker(): void {
       const latitude = Number(latitudeInput?.value);
@@ -502,6 +531,7 @@ function openPlaceEditor(
       if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) return;
       marker.setLatLng([latitude, longitude]);
       editorMap?.panTo([latitude, longitude]);
+      void updateAdministrativeArea(latitude, longitude);
     }
     latitudeInput?.addEventListener("change", syncMarker);
     longitudeInput?.addEventListener("change", syncMarker);
@@ -603,6 +633,39 @@ function openPlaceEditor(
       if (submit) submit.disabled = false;
     }
   });
+}
+
+async function reverseGeocodeJapan(
+  latitude: number,
+  longitude: number
+): Promise<{ prefecture: string; municipality: string; locality: string | null } | null> {
+  const params = new URLSearchParams({ lat: String(latitude), lon: String(longitude) });
+  const response = await fetch(`https://mreversegeocoder.gsi.go.jp/reverse-geocoder/LonLatToAddress?${params}`);
+  if (!response.ok) throw new Error(`GSI reverse geocoder ${response.status}`);
+  const payload = await response.json() as { results?: { muniCd?: string; lv01Nm?: string } };
+  const municipalityCode = payload.results?.muniCd;
+  if (!municipalityCode) return null;
+  const directory = await loadMunicipalityDirectory();
+  const area = directory.get(municipalityCode);
+  return area ? { ...area, locality: payload.results?.lv01Nm ?? null } : null;
+}
+
+async function loadMunicipalityDirectory(): Promise<Map<string, { prefecture: string; municipality: string }>> {
+  municipalityDirectoryPromise ??= fetch("https://maps.gsi.go.jp/js/muni.js")
+    .then((response) => {
+      if (!response.ok) throw new Error(`GSI municipality directory ${response.status}`);
+      return response.text();
+    })
+    .then((source) => {
+      const directory = new Map<string, { prefecture: string; municipality: string }>();
+      const pattern = /GSI\.MUNI_ARRAY\["(\d+)"\] = '([^']+)'/g;
+      for (const match of source.matchAll(pattern)) {
+        const parts = match[2].split(",");
+        if (parts[1] && parts[3]) directory.set(match[1], { prefecture: parts[1], municipality: parts[3] });
+      }
+      return directory;
+    });
+  return municipalityDirectoryPromise;
 }
 
 function adminMarkerIcon(place: AdminPlace, editor = false): L.DivIcon {
