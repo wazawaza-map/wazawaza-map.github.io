@@ -38,6 +38,7 @@ from (values
   ('jp_1q3kcuy', 35.8131774, 139.1291762),
   ('jp_0b9vpe6', 35.9145787, 138.4195054)
   ,('jp_13wmexo', 35.312986, 139.533521)
+  ,('jp_1deyinb', 35.311615, 139.53569)
   ,('jp_16vu9nd', 39.9292411, 139.7665485)
 ) as v(legacy_id, latitude, longitude)
 where p.legacy_id = v.legacy_id;
@@ -73,6 +74,39 @@ set name = '弁天窟 (Benten-kutsu)',
     price_note = 'Взрослые — 400 иен, дети 6–11 лет — 200 иен.',
     cluster_name = 'Камакура · Хасэ'
 where place_id = (select id from places where legacy_id = 'jp_13wmexo')
+  and locale = 'ru';
+
+update places
+set prefecture = '神奈川県',
+    municipality = '鎌倉市',
+    station_walk_min = 1,
+    access_source_url = 'https://tabelog.com/kanagawa/A1404/A140402/14054508/',
+    cluster_id = 'kanagawa_kamakura_hase',
+    google_maps_url = 'https://maps.app.goo.gl/ynM5ugmihwvf16bW8?g_st=ic',
+    website_url = 'https://tabelog.com/kanagawa/A1404/A140402/14054508/',
+    legacy_data = legacy_data || jsonb_build_object(
+      'name', 'idobata',
+      'summary', 'idobata — маленький coffee stand в переоборудованном kei van рядом со станцией 長谷 в Камакуре.',
+      'interest', 'Кофе мелют и заваривают вручную; вокруг фургона есть книги и небольшие товары, а сама точка ощущается как местное место встречи.',
+      'prefecture', jsonb_build_object('jp', '神奈川県', 'ru', 'Канагава'),
+      'area', jsonb_build_object('jp', '鎌倉市長谷', 'ru', 'Камакура · Хасэ'),
+      'location', jsonb_build_object('lat', 35.311615, 'lng', 139.53569, 'nearestStation', '長谷駅 (станция Хасэ)', 'stationWalkMin', 1),
+      'cluster', jsonb_build_object('id', 'kanagawa_kamakura_hase', 'name', 'Камакура · Хасэ'),
+      'links', jsonb_build_object('googleMaps', 'https://maps.app.goo.gl/ynM5ugmihwvf16bW8?g_st=ic', 'officialOrSource', 'https://tabelog.com/kanagawa/A1404/A140402/14054508/')
+    )
+where legacy_id = 'jp_1deyinb';
+
+update place_translations
+set name = 'idobata',
+    area = 'Камакура · Хасэ',
+    summary = 'idobata — маленький coffee stand в переоборудованном kei van рядом со станцией 長谷 в Камакуре.',
+    interest = 'Кофе мелют и заваривают вручную; вокруг фургона есть книги и небольшие товары, а сама точка ощущается как местное место встречи.',
+    nearest_station = '長谷駅 (станция Хасэ)',
+    access_note = 'От станции 長谷駅 линии Энодэн — около минуты пешком в сторону Камакурского Большого Будды.',
+    hours_note = 'Обычно 9:00–17:00; часы могут меняться из-за погоды, выходные нерегулярные.',
+    price_note = 'Напитки — обычно до 1 000 иен.',
+    cluster_name = 'Камакура · Хасэ'
+where place_id = (select id from places where legacy_id = 'jp_1deyinb')
   and locale = 'ru';
 
 update places

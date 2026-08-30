@@ -80,6 +80,50 @@
       }
     }
   },
+  "jp_1deyinb": {
+    "latitude": 35.311615,
+    "longitude": 139.53569,
+    "prefecture": "神奈川県",
+    "municipality": "鎌倉市",
+    "google_maps_url": "https://maps.app.goo.gl/ynM5ugmihwvf16bW8?g_st=ic",
+    "website_url": "https://tabelog.com/kanagawa/A1404/A140402/14054508/",
+    "station_walk_min": 1,
+    "access_source_url": "https://tabelog.com/kanagawa/A1404/A140402/14054508/",
+    "cluster_id": "kanagawa_kamakura_hase",
+    "translation": {
+      "name": "idobata",
+      "area": "Камакура · Хасэ",
+      "summary": "idobata — маленький coffee stand в переоборудованном kei van рядом со станцией 長谷 в Камакуре.",
+      "interest": "Кофе мелют и заваривают вручную; вокруг фургона есть книги и небольшие товары, а сама точка ощущается как местное место встречи.",
+      "nearest_station": "長谷駅 (станция Хасэ)",
+      "access_note": "От станции 長谷駅 линии Энодэн — около минуты пешком в сторону Камакурского Большого Будды.",
+      "hours_note": "Обычно 9:00–17:00; часы могут меняться из-за погоды, выходные нерегулярные.",
+      "price_note": "Напитки — обычно до 1 000 иен.",
+      "cluster_name": "Камакура · Хасэ"
+    },
+    "legacy_patch": {
+      "name": "idobata",
+      "summary": "idobata — маленький coffee stand в переоборудованном kei van рядом со станцией 長谷 в Камакуре.",
+      "interest": "Кофе мелют и заваривают вручную; вокруг фургона есть книги и небольшие товары, а сама точка ощущается как местное место встречи.",
+      "prefecture": { "jp": "神奈川県", "ru": "Канагава" },
+      "area": { "jp": "鎌倉市長谷", "ru": "Камакура · Хасэ" },
+      "location": {
+        "lat": 35.311615,
+        "lng": 139.53569,
+        "nearestStation": "長谷駅 (станция Хасэ)",
+        "stationWalkMin": 1
+      },
+      "cluster": { "id": "kanagawa_kamakura_hase", "name": "Камакура · Хасэ" },
+      "links": {
+        "googleMaps": "https://maps.app.goo.gl/ynM5ugmihwvf16bW8?g_st=ic",
+        "officialOrSource": "https://tabelog.com/kanagawa/A1404/A140402/14054508/"
+      },
+      "access": {
+        "note": "От станции 長谷駅 линии Энодэн — около минуты пешком в сторону Камакурского Большого Будды.",
+        "sourceUrl": "https://tabelog.com/kanagawa/A1404/A140402/14054508/"
+      }
+    }
+  },
   "jp_16vu9nd": {
     "latitude": 39.9292411,
     "longitude": 139.7665485
