@@ -28,6 +28,7 @@ export type Place = {
   reservation: string | null;
   google_maps_url: string | null;
   website_url: string | null;
+  visited: boolean;
   visited_at: string | null;
   place_translations: PlaceTranslation[];
 };

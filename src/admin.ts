@@ -31,6 +31,7 @@ type AdminPlace = {
   google_maps_url: string | null;
   website_url: string | null;
   category: string | null;
+  visited: boolean;
   visited_at: string | null;
   place_translations: Array<{
     locale: string;
@@ -130,18 +131,29 @@ function isExpiring(session: AdminSession): boolean {
 
 async function getPlaces(session: AdminSession): Promise<AdminPlace[]> {
   const { url, key } = requireConfig();
-  const select = [
+  const fields = [
     "id", "legacy_id", "slug", "prefecture", "municipality", "latitude",
     "longitude", "status", "updated_at", "google_maps_url",
     "website_url", "category", "visited_at",
-    "place_translations(locale,name,area,summary,interest,nearest_station,access_note)",
-  ].join(",");
-  const params = new URLSearchParams({ select, order: "updated_at.desc,id.desc" });
-  const response = await fetch(`${url}/rest/v1/places?${params}`, {
-    headers: { apikey: key, Authorization: `Bearer ${session.access_token}`, Range: "0-4999" },
-  });
-  if (!response.ok) throw new Error(`Supabase ${response.status}: ${await response.text()}`);
-  return response.json() as Promise<AdminPlace[]>;
+  ];
+  const translations = "place_translations(locale,name,area,summary,interest,nearest_station,access_note)";
+  async function fetchPlaces(includeVisited: boolean): Promise<AdminPlace[]> {
+    const select = [...fields, ...(includeVisited ? ["visited"] : []), translations].join(",");
+    const params = new URLSearchParams({ select, order: "updated_at.desc,id.desc" });
+    const response = await fetch(`${url}/rest/v1/places?${params}`, {
+      headers: { apikey: key, Authorization: `Bearer ${session.access_token}`, Range: "0-4999" },
+    });
+    if (!response.ok) throw new Error(`Supabase ${response.status}: ${await response.text()}`);
+    return response.json() as Promise<AdminPlace[]>;
+  }
+  try {
+    return await fetchPlaces(true);
+  } catch (error) {
+    if (!(error instanceof Error) || !error.message.includes("visited")) throw error;
+    const places = await fetchPlaces(false);
+    places.forEach((place) => { place.visited = Boolean(place.visited_at); });
+    return places;
+  }
 }
 
 async function updateRows(
@@ -417,8 +429,8 @@ function openPlaceEditor(session: AdminSession, place: AdminPlace, returnView: A
           ${field("Долгота", "longitude", String(place.longitude), true, "number", "any")}
         </div>
         <div class="admin-visited-control">
-          <label><input name="visited" type="checkbox"${place.visited_at ? " checked" : ""}> Я была здесь</label>
-          ${field("Дата посещения", "visited_at", place.visited_at ?? new Date().toISOString().slice(0, 10), false, "date")}
+          <label><input name="visited" type="checkbox"${place.visited || place.visited_at ? " checked" : ""}> Я была здесь</label>
+          ${field("Дата посещения (необязательно)", "visited_at", place.visited_at ?? "", false, "date")}
         </div>
         <div id="admin-editor-map" class="admin-editor-map"></div>
         <p class="admin-editor__hint">Перетащите маркер или введите координаты вручную. Статус: <strong>${escapeHtml(place.status)}</strong>.</p>
@@ -550,7 +562,8 @@ function openPlaceEditor(session: AdminSession, place: AdminPlace, returnView: A
         website_url: optionalUrl(data, "website_url"),
         latitude,
         longitude,
-        visited_at: visited ? required(data, "visited_at") : null,
+        visited,
+        visited_at: visited ? optional(data, "visited_at") : null,
       });
       for (const locale of ["ru", "ja", "en"] as const) {
         const name = optional(data, `${locale}_name`);
@@ -579,7 +592,7 @@ function adminMarkerIcon(place: AdminPlace, editor = false): L.DivIcon {
   const classes = [
     "admin-place-marker",
     `admin-place-marker--${place.status}`,
-    place.visited_at ? "admin-place-marker--visited" : "",
+    place.visited || place.visited_at ? "admin-place-marker--visited" : "",
     editor ? "admin-place-marker--editor" : "",
   ].filter(Boolean).join(" ");
   const size = editor ? 24 : 16;

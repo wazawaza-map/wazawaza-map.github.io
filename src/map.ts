@@ -76,10 +76,10 @@ export function createPlacesMap(
           ? `<br><span>${escapeHtml(translation.area)}</span>`
           : ""
       }
-      ${place.visited_at ? `<br><span class="visited-popup">✓ Была здесь</span>` : ""}
+      ${place.visited || place.visited_at ? `<br><span class="visited-popup">✓ Была здесь</span>` : ""}
     `);
 
-    if (place.visited_at) {
+    if (place.visited || place.visited_at) {
       marker.getElement()?.classList.add("is-visited-marker");
       marker.on("add", () => {
         marker.getElement()?.classList.add("is-visited-marker");

@@ -28,7 +28,7 @@ async function supabaseGet<T>(path: string): Promise<T> {
 }
 
 export async function getPlaces(locale = "ru"): Promise<Place[]> {
-  const select = [
+  const fields = [
     "id",
     "slug",
     "prefecture",
@@ -45,15 +45,23 @@ export async function getPlaces(locale = "ru"): Promise<Place[]> {
     "google_maps_url",
     "website_url",
     "visited_at",
-    "place_translations(locale,name,summary,area,nearest_station,access_note,interest,seasonality,price_note,hours_note,cluster_name)",
-  ].join(",");
+  ];
+  const translations = "place_translations(locale,name,summary,area,nearest_station,access_note,interest,seasonality,price_note,hours_note,cluster_name)";
 
-  const params = new URLSearchParams({
-    select,
-    order: "prefecture.asc,id.asc",
-  });
+  async function fetchPlaces(includeVisited: boolean): Promise<Place[]> {
+    const select = [...fields, ...(includeVisited ? ["visited"] : []), translations].join(",");
+    const params = new URLSearchParams({ select, order: "prefecture.asc,id.asc" });
+    return supabaseGet<Place[]>(`places?${params.toString()}`);
+  }
 
-  const places = await supabaseGet<Place[]>(`places?${params.toString()}`);
+  let places: Place[];
+  try {
+    places = await fetchPlaces(true);
+  } catch (error) {
+    if (!(error instanceof Error) || !error.message.includes("visited")) throw error;
+    places = await fetchPlaces(false);
+    places.forEach((place) => { place.visited = Boolean(place.visited_at); });
+  }
   const priority = [locale, "ru", "ja", "en"];
   for (const place of places) {
     place.place_translations.sort((a, b) => {

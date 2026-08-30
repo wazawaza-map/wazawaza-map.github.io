@@ -74,7 +74,7 @@ function renderPlaces(places: Place[], routeCount: number, locale: "ru" | "ja" |
           <h2>${escapeHtml(placeName(place))}</h2>
           <p>${escapeHtml(placeSummary(place) || t?.interest || "Описание скоро появится.")}</p>
           <div class="chips">
-            ${place.visited_at ? `<span class="visited-chip">✓ Была здесь</span>` : ""}
+            ${place.visited || place.visited_at ? `<span class="visited-chip">${escapeHtml(visitedLabel(place.visited_at, locale))}</span>` : ""}
             ${place.category ? `<span>${escapeHtml(categoryLabel(place.category, locale))}</span>` : ""}
             ${place.indoor_outdoor ? `<span>${escapeHtml(place.indoor_outdoor)}</span>` : ""}
             ${place.visit_minutes ? `<span>≈ ${place.visit_minutes} мин</span>` : ""}
@@ -653,6 +653,13 @@ function languageSwitch(activeLocale: "ru" | "ja" | "en"): string {
       url.searchParams.set("lang", locale);
       return `<a href="${escapeHtml(url.pathname + url.search)}"${locale === activeLocale ? ' aria-current="page"' : ""}>${locale.toUpperCase()}</a>`;
     }).join("")}</nav>`;
+}
+
+function visitedLabel(date: string | null, locale: "ru" | "ja" | "en"): string {
+  const label = { ru: "✓ Была здесь", ja: "✓ 訪問済み", en: "✓ Visited" }[locale];
+  if (!date) return label;
+  const match = /^(\d{4})-(\d{2})/.exec(date);
+  return match ? `${label} · ${match[1]}/${match[2]}` : label;
 }
 
 async function start(): Promise<void> {

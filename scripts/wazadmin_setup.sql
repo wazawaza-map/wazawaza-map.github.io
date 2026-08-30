@@ -7,6 +7,13 @@
 alter table public.places
 add column if not exists visited_at date;
 
+alter table public.places
+add column if not exists visited boolean not null default false;
+
+update public.places
+set visited = true
+where visited_at is not null and visited = false;
+
 alter table public.places enable row level security;
 alter table public.place_translations enable row level security;
 
