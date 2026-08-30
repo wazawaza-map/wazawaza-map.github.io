@@ -10,6 +10,7 @@ import {
 import { openPlaceDrawer, type PlaceDrawer } from "./drawer";
 import { prefectureLabel } from "./prefectures";
 import { CATEGORIES, categoryLabel, normalizeCategory } from "./categories";
+import { visitedLabel } from "./visited";
 
 const app = document.querySelector<HTMLDivElement>("#app");
 
@@ -653,13 +654,6 @@ function languageSwitch(activeLocale: "ru" | "ja" | "en"): string {
       url.searchParams.set("lang", locale);
       return `<a href="${escapeHtml(url.pathname + url.search)}"${locale === activeLocale ? ' aria-current="page"' : ""}>${locale.toUpperCase()}</a>`;
     }).join("")}</nav>`;
-}
-
-function visitedLabel(date: string | null, locale: "ru" | "ja" | "en"): string {
-  const label = { ru: "✓ Была здесь", ja: "✓ 訪問済み", en: "✓ Visited" }[locale];
-  if (!date) return label;
-  const match = /^(\d{4})-(\d{2})/.exec(date);
-  return match ? `${label} · ${match[1]}/${match[2]}` : label;
 }
 
 async function start(): Promise<void> {

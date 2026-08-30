@@ -2,6 +2,7 @@ import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import "./leaflet-icons";
 import type { Place } from "./types";
+import { visitedLabel } from "./visited";
 
 export function createPlacesMap(
   container: HTMLElement,
@@ -76,7 +77,7 @@ export function createPlacesMap(
           ? `<br><span>${escapeHtml(translation.area)}</span>`
           : ""
       }
-      ${place.visited || place.visited_at ? `<br><span class="visited-popup">✓ Была здесь</span>` : ""}
+      ${place.visited || place.visited_at ? `<br><span class="visited-popup">${escapeHtml(visitedLabel(place.visited_at))}</span>` : ""}
     `);
 
     if (place.visited || place.visited_at) {

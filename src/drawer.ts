@@ -1,6 +1,7 @@
 import type { Place } from "./types";
 import { prefectureLabel } from "./prefectures";
 import { categoryLabel, type AppLocale } from "./categories";
+import { visitedLabel } from "./visited";
 
 type DrawerOptions = {
   onClose: () => void;
@@ -32,6 +33,7 @@ export function openPlaceDrawer(
       <p class="place-drawer__location">${escapeHtml(
         [translation?.area, prefectureLabel(place.prefecture)].filter(Boolean).join(" · ")
       )}</p>
+      ${place.visited || place.visited_at ? `<p class="visited-chip">${escapeHtml(visitedLabel(place.visited_at, options.locale))}</p>` : ""}
       ${
         translation?.interest || translation?.summary
           ? `<p class="place-drawer__lead">${escapeHtml(
