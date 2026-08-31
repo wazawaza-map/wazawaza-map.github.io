@@ -44,8 +44,13 @@ button, input, select { font: inherit; }
 .admin-status { display: inline-block; padding: 4px 7px; border: 1px solid currentColor; font-size: 10px; font-weight: 800; text-transform: uppercase; }
 .admin-status--published { color: #236038; }
 .admin-status--draft { color: #7d5b14; }
-.admin-map-hint { margin: 0 0 10px; color: #625e56; font-size: 12px; }
+.admin-map-toolbar { display: flex; gap: 16px; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+.admin-map-hint { margin: 0; color: #625e56; font-size: 12px; }
+.admin-map-toolbar button { padding: 9px 13px; border: 1px solid #222; background: transparent; cursor: pointer; }
+.admin-map-toolbar button[aria-pressed="true"] { background: #222; color: #fff; }
+.admin-add-place-status { min-height: 18px; margin: 0 0 8px; color: #236038; font-size: 12px; font-weight: 700; }
 .admin-places-map { height: min(72vh, 780px); min-height: 520px; border: 1px solid #222; background: #d9ddd3; }
+.admin-places-map.is-adding-place, .admin-places-map.is-adding-place .leaflet-grab { cursor: crosshair; }
 .admin-place-marker-wrap { background: transparent; border: 0; }
 .admin-place-marker { display: block; width: 16px; height: 16px; border: 2px solid #f4f1e9; border-radius: 50%; background: #7d5b14; box-shadow: 0 1px 5px rgba(0, 0, 0, .55); }
 .admin-place-marker--published { background: #236038; }
@@ -89,6 +94,7 @@ button, input, select { font: inherit; }
   .admin-toolbar { grid-template-columns: 1fr; }
   .admin-toolbar span { justify-self: start; }
   .admin-places-map { min-height: 65vh; }
+  .admin-map-toolbar { align-items: stretch; flex-direction: column; }
   .admin-editor-overlay { padding: 0; }
   .admin-editor { min-height: 100vh; padding: 20px; border: 0; }
   .admin-editor__footer { align-items: stretch; flex-direction: column; }

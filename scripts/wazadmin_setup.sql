@@ -17,7 +17,7 @@ where visited_at is not null and visited = false;
 alter table public.places enable row level security;
 alter table public.place_translations enable row level security;
 
-grant select, update on table public.places to authenticated;
+grant select, insert, update on table public.places to authenticated;
 grant select, update on table public.place_translations to authenticated;
 grant insert on table public.place_translations to authenticated;
 
@@ -35,6 +35,11 @@ drop policy if exists "wazadmins can update places" on public.places;
 create policy "wazadmins can update places"
 on public.places for update to authenticated
 using ((auth.jwt() -> 'app_metadata' ->> 'role') = 'admin')
+with check ((auth.jwt() -> 'app_metadata' ->> 'role') = 'admin');
+
+drop policy if exists "wazadmins can insert places" on public.places;
+create policy "wazadmins can insert places"
+on public.places for insert to authenticated
 with check ((auth.jwt() -> 'app_metadata' ->> 'role') = 'admin');
 
 drop policy if exists "wazadmins can update place translations" on public.place_translations;

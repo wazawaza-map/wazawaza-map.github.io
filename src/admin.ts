@@ -177,6 +177,27 @@ async function updateRows(
   if (!response.ok) throw new Error(`Supabase ${response.status}: ${await response.text()}`);
 }
 
+async function createPlace(
+  session: AdminSession,
+  values: Record<string, unknown>
+): Promise<AdminPlace> {
+  const { url, key } = requireConfig();
+  const response = await fetch(`${url}/rest/v1/places`, {
+    method: "POST",
+    headers: {
+      apikey: key,
+      Authorization: `Bearer ${session.access_token}`,
+      "Content-Type": "application/json",
+      Prefer: "return=representation",
+    },
+    body: JSON.stringify(values),
+  });
+  if (!response.ok) throw new Error(`Supabase ${response.status}: ${await response.text()}`);
+  const rows = await response.json() as AdminPlace[];
+  if (!rows[0]) throw new Error("Supabase не вернул созданное место.");
+  return rows[0];
+}
+
 async function upsertTranslation(
   session: AdminSession,
   values: Record<string, unknown>
@@ -297,7 +318,11 @@ async function renderDashboard(
           </div>
         </section>
         <section data-admin-panel="map"${initialView === "map" ? "" : " hidden"}>
-          <p class="admin-map-hint">Нажмите на отметку, чтобы открыть редактор места.</p>
+          <div class="admin-map-toolbar">
+            <p class="admin-map-hint">Нажмите на отметку, чтобы открыть редактор места.</p>
+            <button id="admin-add-place" type="button" aria-pressed="false">＋ Добавить место по точке</button>
+          </div>
+          <p id="admin-add-place-status" class="admin-add-place-status" aria-live="polite"></p>
           <div id="admin-places-map" class="admin-places-map"></div>
         </section>
       </main>`;
@@ -306,7 +331,10 @@ async function renderDashboard(
     const search = document.querySelector<HTMLInputElement>("#admin-search");
     const resultCount = document.querySelector<HTMLElement>("#admin-result-count");
     const mapElement = document.querySelector<HTMLElement>("#admin-places-map");
+    const addPlaceButton = document.querySelector<HTMLButtonElement>("#admin-add-place");
+    const addPlaceStatus = document.querySelector<HTMLElement>("#admin-add-place-status");
     let activeView: AdminView = initialView;
+    let addPlaceMode = false;
     let placesMap: L.Map | undefined;
     let markerLayer: L.LayerGroup | undefined;
 
@@ -333,7 +361,53 @@ async function renderDashboard(
       }).addTo(placesMap);
       markerLayer = L.layerGroup().addTo(placesMap);
       renderMapMarkers(filteredPlaces(search?.value));
+      placesMap.on("click", async (event) => {
+        if (!addPlaceMode) return;
+        setAddPlaceMode(false);
+        if (addPlaceStatus) addPlaceStatus.textContent = "Определяю префектуру и муниципалитет…";
+        try {
+          const area = await reverseGeocodeJapan(event.latlng.lat, event.latlng.lng);
+          if (!area) throw new Error("Административный адрес не найден.");
+          const name = window.prompt(`Новое место: ${area.prefecture} · ${area.municipality}${area.locality ? ` · ${area.locality}` : ""}\n\nВведите название:`)?.trim();
+          if (!name) {
+            if (addPlaceStatus) addPlaceStatus.textContent = "Добавление отменено.";
+            return;
+          }
+          if (addPlaceStatus) addPlaceStatus.textContent = "Создаю черновик…";
+          const newPlace = await createPlace(session, {
+            prefecture: area.prefecture,
+            municipality: area.municipality,
+            latitude: event.latlng.lat,
+            longitude: event.latlng.lng,
+            category: "other",
+            status: "draft",
+            tags: [],
+            access_modes: [],
+            visited: false,
+            visited_at: null,
+            legacy_data: {},
+          });
+          await upsertTranslation(session, { place_id: newPlace.id, locale: "ru", name, area: area.locality });
+          newPlace.place_translations = [{ locale: "ru", name, area: area.locality, summary: null, interest: null, nearest_station: null, access_note: null }];
+          if (addPlaceStatus) addPlaceStatus.textContent = `Создан черновик #${newPlace.id}.`;
+          openPlaceEditor(session, newPlace, "map", currentMapState());
+        } catch (createError) {
+          if (addPlaceStatus) addPlaceStatus.textContent = createError instanceof Error ? createError.message : String(createError);
+        }
+      });
+      const handleAddPlaceKeydown = (event: KeyboardEvent): void => {
+        if (event.key === "Escape" && addPlaceMode) setAddPlaceMode(false);
+      };
+      document.addEventListener("keydown", handleAddPlaceKeydown);
+      placesMap.on("unload", () => document.removeEventListener("keydown", handleAddPlaceKeydown));
       requestAnimationFrame(() => placesMap?.invalidateSize());
+    }
+
+    function setAddPlaceMode(enabled: boolean): void {
+      addPlaceMode = enabled;
+      addPlaceButton?.setAttribute("aria-pressed", String(enabled));
+      mapElement?.classList.toggle("is-adding-place", enabled);
+      if (addPlaceStatus) addPlaceStatus.textContent = enabled ? "Нажмите на нужную точку карты. Esc — отмена." : "";
     }
 
     function currentMapState(): AdminMapState | undefined {
@@ -381,6 +455,7 @@ async function renderDashboard(
       const view = button?.dataset.adminView;
       if (view === "list" || view === "map") switchView(view);
     });
+    addPlaceButton?.addEventListener("click", () => setAddPlaceMode(!addPlaceMode));
     body?.addEventListener("click", (event) => {
       const button = (event.target as HTMLElement).closest<HTMLButtonElement>("[data-edit-place]");
       if (!button) return;
