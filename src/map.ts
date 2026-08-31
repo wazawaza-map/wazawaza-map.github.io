@@ -3,13 +3,17 @@ import "leaflet/dist/leaflet.css";
 import "./leaflet-icons";
 import type { Place } from "./types";
 import { visitedLabel } from "./visited";
+import type { AppLocale } from "./categories";
+import { uiCopy } from "./i18n";
 
 export function createPlacesMap(
   container: HTMLElement,
   places: Place[],
   onSelectPlace?: (place: Place) => void,
-  onViewportPlacesChange?: (places: Place[]) => void
+  onViewportPlacesChange?: (places: Place[]) => void,
+  locale: AppLocale = "ru"
 ) {
+  const copy = uiCopy(locale);
   const map = L.map(container, {
     center: [36.2, 138.2],
     zoom: 5,
@@ -71,13 +75,13 @@ export function createPlacesMap(
     ]).addTo(map);
 
     marker.bindPopup(`
-      <strong>${escapeHtml(translation?.name ?? "Без названия")}</strong>
+      <strong>${escapeHtml(translation?.name ?? copy.unnamed)}</strong>
       ${
         translation?.area
           ? `<br><span>${escapeHtml(translation.area)}</span>`
           : ""
       }
-      ${place.visited || place.visited_at ? `<br><span class="visited-popup">${escapeHtml(visitedLabel(place.visited_at))}</span>` : ""}
+      ${place.visited || place.visited_at ? `<br><span class="visited-popup">${escapeHtml(visitedLabel(place.visited_at, locale))}</span>` : ""}
     `);
 
     if (place.visited || place.visited_at) {

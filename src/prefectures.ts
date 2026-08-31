@@ -1,3 +1,5 @@
+import type { AppLocale } from "./categories";
+
 const RUSSIAN_NAMES: Record<string, string> = {
   北海道: "Хоккайдо", 青森県: "Аомори", 岩手県: "Иватэ", 宮城県: "Мияги",
   秋田県: "Акита", 山形県: "Ямагата", 福島県: "Фукусима", 茨城県: "Ибараки",
@@ -12,6 +14,22 @@ const RUSSIAN_NAMES: Record<string, string> = {
   佐賀県: "Сага", 長崎県: "Нагасаки", 熊本県: "Кумамото", 大分県: "Оита",
   宮崎県: "Миядзаки", 鹿児島県: "Кагосима", 沖縄県: "Окинава",
   "埼玉県・群馬県・栃木県": "Сайтама, Гумма и Тотиги",
+};
+
+const ENGLISH_NAMES: Record<string, string> = {
+  北海道: "Hokkaido", 青森県: "Aomori", 岩手県: "Iwate", 宮城県: "Miyagi",
+  秋田県: "Akita", 山形県: "Yamagata", 福島県: "Fukushima", 茨城県: "Ibaraki",
+  栃木県: "Tochigi", 群馬県: "Gunma", 埼玉県: "Saitama", 千葉県: "Chiba",
+  東京都: "Tokyo", 神奈川県: "Kanagawa", 新潟県: "Niigata", 富山県: "Toyama",
+  石川県: "Ishikawa", 福井県: "Fukui", 山梨県: "Yamanashi", 長野県: "Nagano",
+  岐阜県: "Gifu", 静岡県: "Shizuoka", 愛知県: "Aichi", 三重県: "Mie",
+  滋賀県: "Shiga", 京都府: "Kyoto", 大阪府: "Osaka", 兵庫県: "Hyogo",
+  奈良県: "Nara", 和歌山県: "Wakayama", 鳥取県: "Tottori", 島根県: "Shimane",
+  岡山県: "Okayama", 広島県: "Hiroshima", 山口県: "Yamaguchi", 徳島県: "Tokushima",
+  香川県: "Kagawa", 愛媛県: "Ehime", 高知県: "Kochi", 福岡県: "Fukuoka",
+  佐賀県: "Saga", 長崎県: "Nagasaki", 熊本県: "Kumamoto", 大分県: "Oita",
+  宮崎県: "Miyazaki", 鹿児島県: "Kagoshima", 沖縄県: "Okinawa",
+  "埼玉県・群馬県・栃木県": "Saitama, Gunma & Tochigi",
 };
 
 const ADJACENT: Record<string, string[]> = {
@@ -40,9 +58,10 @@ const ADJACENT: Record<string, string[]> = {
   大分県: ["福岡県", "熊本県", "宮崎県"], 宮崎県: ["熊本県", "大分県", "鹿児島県"], 鹿児島県: ["熊本県", "宮崎県"],
 };
 
-export function prefectureLabel(prefecture: string): string {
-  const russian = RUSSIAN_NAMES[prefecture];
-  return russian ? `${russian} · ${prefecture}` : prefecture;
+export function prefectureLabel(prefecture: string, locale: AppLocale = "ru"): string {
+  if (locale === "ja") return prefecture;
+  const translated = locale === "en" ? ENGLISH_NAMES[prefecture] : RUSSIAN_NAMES[prefecture];
+  return translated ? `${translated} · ${prefecture}` : prefecture;
 }
 
 export function adjacentPrefectures(prefecture: string): string[] {

@@ -2,6 +2,7 @@ import type { Place } from "./types";
 import { prefectureLabel } from "./prefectures";
 import { categoryLabel, type AppLocale } from "./categories";
 import { visitedLabel } from "./visited";
+import { environmentLabel, formatDuration, formatMinutes, uiCopy } from "./i18n";
 
 type DrawerOptions = {
   onClose: () => void;
@@ -17,6 +18,8 @@ export function openPlaceDrawer(
   place: Place,
   options: DrawerOptions
 ): PlaceDrawer {
+  const locale = options.locale ?? "ru";
+  const copy = uiCopy(locale);
   const translation = place.place_translations[0];
   const backdrop = document.createElement("div");
   backdrop.className = "drawer-backdrop";
@@ -27,11 +30,11 @@ export function openPlaceDrawer(
       aria-modal="true"
       aria-labelledby="place-drawer-title"
     >
-      <button class="place-drawer__close" type="button" aria-label="Закрыть">×</button>
-      <p class="eyebrow">${escapeHtml(categoryLabel(place.category, options.locale) || "Место")}</p>
-      <h2 id="place-drawer-title">${escapeHtml(translation?.name ?? "Без названия")}</h2>
+      <button class="place-drawer__close" type="button" aria-label="${copy.close}">×</button>
+      <p class="eyebrow">${escapeHtml(categoryLabel(place.category, locale) || copy.place)}</p>
+      <h2 id="place-drawer-title">${escapeHtml(translation?.name ?? copy.unnamed)}</h2>
       <p class="place-drawer__location">${escapeHtml(
-        [translation?.area, prefectureLabel(place.prefecture)].filter(Boolean).join(" · ")
+        [translation?.area, prefectureLabel(place.prefecture, locale)].filter(Boolean).join(" · ")
       )}</p>
       ${place.visited || place.visited_at ? `<p class="visited-chip">${escapeHtml(visitedLabel(place.visited_at, options.locale))}</p>` : ""}
       ${
@@ -42,24 +45,24 @@ export function openPlaceDrawer(
           : ""
       }
       <div class="place-drawer__facts">
-        ${fact("Время", formatDuration(place.visit_minutes))}
+        ${fact(copy.time, formatDuration(place.visit_minutes, locale))}
         ${fact(
-          "От станции",
+          copy.fromStation,
           place.station_walk_min != null
-            ? `${place.station_walk_min} мин`
+            ? formatMinutes(place.station_walk_min, locale)
             : null
         )}
-        ${fact("Среда", environmentLabel(place.indoor_outdoor))}
+        ${fact(copy.environment, environmentLabel(place.indoor_outdoor, locale))}
       </div>
-      ${detail("Ближайшая станция", translation?.nearest_station)}
-      ${detail("Как добраться", translation?.access_note, place.access_modes)}
+      ${detail(copy.nearestStation, translation?.nearest_station)}
+      ${detail(copy.directions, translation?.access_note, place.access_modes)}
       ${detail(
-        "Часы и сезон",
+        copy.hoursAndSeason,
         translation?.hours_note,
         translation?.seasonality ? [translation.seasonality] : []
       )}
-      ${detail("Цена", translation?.price_note)}
-      ${detail("Бронирование", place.reservation)}
+      ${detail(copy.price, translation?.price_note)}
+      ${detail(copy.reservation, place.reservation)}
       ${
         place.tags.length
           ? `<div class="place-drawer__tags">${place.tags
@@ -68,8 +71,8 @@ export function openPlaceDrawer(
           : ""
       }
       <div class="place-drawer__actions">
-        ${externalLink(place.google_maps_url, "Открыть в Google Maps ↗")}
-        ${externalLink(place.website_url, "Официальный сайт ↗", true)}
+        ${externalLink(place.google_maps_url, copy.openMaps)}
+        ${externalLink(place.website_url, copy.officialSite, true)}
       </div>
     </aside>
   `;
@@ -188,25 +191,6 @@ function safeExternalUrl(value: string | null): string | null {
   } catch {
     return null;
   }
-}
-
-function formatDuration(minutes: number | null): string | null {
-  if (minutes == null) return null;
-  if (minutes < 60) return `${minutes} мин`;
-  if (minutes < 1440) return `${Math.round(minutes / 6) / 10} ч`;
-  return `${Math.round(minutes / 1440)} дн`;
-}
-
-function environmentLabel(value: string | null): string | null {
-  if (!value) return null;
-
-  return (
-    {
-      indoor: "внутри",
-      outdoor: "снаружи",
-      mixed: "смешанно",
-    }[value] ?? value
-  );
 }
 
 function escapeHtml(value: string): string {

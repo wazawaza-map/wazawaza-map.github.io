@@ -9,8 +9,9 @@ import {
 } from "./state";
 import { openPlaceDrawer, type PlaceDrawer } from "./drawer";
 import { prefectureLabel } from "./prefectures";
-import { CATEGORIES, categoryLabel, normalizeCategory } from "./categories";
+import { CATEGORIES, categoryLabel, normalizeCategory, type AppLocale } from "./categories";
 import { visitedLabel } from "./visited";
+import { environmentLabel, formatMinutes, uiCopy } from "./i18n";
 
 const app = document.querySelector<HTMLDivElement>("#app");
 
@@ -18,44 +19,36 @@ if (!app) {
   throw new Error("#app not found");
 }
 
-function placeName(place: Place): string {
-  return place.place_translations[0]?.name ?? "Без названия";
+function placeName(place: Place, locale: AppLocale): string {
+  return place.place_translations[0]?.name ?? uiCopy(locale).unnamed;
 }
 
 function placeSummary(place: Place): string {
   return place.place_translations[0]?.summary ?? "";
 }
 
-function renderLoading(): void {
+function renderLoading(locale: AppLocale): void {
+  const copy = uiCopy(locale);
   app!.innerHTML = `
     <main class="shell">
       <header class="hero">
         <div>
           <p class="eyebrow">わざわざ · WAZAWAZA</p>
-          <h1>Места, ради которых<br>стоит свернуть с маршрута.</h1>
+          <h1>${copy.heroTitle}</h1>
         </div>
-        <p class="lede">Не “топ-10 Токио”, а странное, красивое, далёкое и очень конкретное.</p>
+        <p class="lede">${copy.heroLead}</p>
       </header>
 
       <section class="status-card">
         <span class="spinner" aria-hidden="true"></span>
-        Загружаю опубликованные места…
+        ${copy.loading}
       </section>
     </main>
   `;
 }
 
-function renderPlaces(places: Place[], routeCount: number, locale: "ru" | "ja" | "en"): void {
-  const categoryCopy = {
-    ru: { label: "Категория", all: "Все категории" },
-    ja: { label: "カテゴリー", all: "すべてのカテゴリー" },
-    en: { label: "Category", all: "All categories" },
-  }[locale];
-  const visitCopy = {
-    ru: { label: "Посещение", all: "Все места", visited: "Только была", unvisited: "Только не была" },
-    ja: { label: "訪問", all: "すべて", visited: "訪問済みのみ", unvisited: "未訪問のみ" },
-    en: { label: "Visit", all: "All places", visited: "Visited only", unvisited: "Not visited only" },
-  }[locale];
+function renderPlaces(places: Place[], routeCount: number, locale: AppLocale): void {
+  const copy = uiCopy(locale);
   const prefectureCount = new Set(places.map((place) => place.prefecture)).size;
 
   const cards = places
@@ -63,8 +56,12 @@ function renderPlaces(places: Place[], routeCount: number, locale: "ru" | "ja" |
       const t = place.place_translations[0];
       const meta = [
         t?.area,
-        prefectureLabel(place.prefecture),
-        place.station_walk_min != null ? `${place.station_walk_min} мин от транспорта` : null,
+        prefectureLabel(place.prefecture, locale),
+        place.station_walk_min != null
+          ? locale === "ja"
+            ? `${place.station_walk_min}${copy.transitWalk}`
+            : `${place.station_walk_min} ${copy.transitWalk}`
+          : null,
       ].filter(Boolean);
 
       return `
@@ -74,16 +71,16 @@ function renderPlaces(places: Place[], routeCount: number, locale: "ru" | "ja" |
             data-prefecture="${escapeHtml(place.prefecture)}"
             role="button"
             tabindex="0"
-            aria-label="Открыть ${escapeHtml(placeName(place))}"
+            aria-label="${copy.openPlace} ${escapeHtml(placeName(place, locale))}"
           >
           <div class="place-card__meta">${escapeHtml(meta.join(" · "))}</div>
-          <h2>${escapeHtml(placeName(place))}</h2>
-          <p>${escapeHtml(placeSummary(place) || t?.interest || "Описание скоро появится.")}</p>
+          <h2>${escapeHtml(placeName(place, locale))}</h2>
+          <p>${escapeHtml(placeSummary(place) || t?.interest || copy.descriptionSoon)}</p>
           <div class="chips">
             ${place.visited || place.visited_at ? `<span class="visited-chip">${escapeHtml(visitedLabel(place.visited_at, locale))}</span>` : ""}
             ${place.category ? `<span>${escapeHtml(categoryLabel(place.category, locale))}</span>` : ""}
-            ${place.indoor_outdoor ? `<span>${escapeHtml(place.indoor_outdoor)}</span>` : ""}
-            ${place.visit_minutes ? `<span>≈ ${place.visit_minutes} мин</span>` : ""}
+            ${place.indoor_outdoor ? `<span>${escapeHtml(environmentLabel(place.indoor_outdoor, locale) ?? "")}</span>` : ""}
+            ${place.visit_minutes ? `<span>≈ ${formatMinutes(place.visit_minutes, locale)}</span>` : ""}
           </div>
         </article>
       `;
@@ -92,7 +89,7 @@ function renderPlaces(places: Place[], routeCount: number, locale: "ru" | "ja" |
 
   const prefectures = Array.from(
     new Set(places.map((place) => place.prefecture))
-  ).sort((a, b) => prefectureLabel(a).localeCompare(prefectureLabel(b), "ru"));
+  ).sort((a, b) => prefectureLabel(a, locale).localeCompare(prefectureLabel(b, locale), locale));
   const availableCategoryIds = new Set(
     places.map((place) => normalizeCategory(place.category)).filter(Boolean)
   );
@@ -106,15 +103,15 @@ function renderPlaces(places: Place[], routeCount: number, locale: "ru" | "ja" |
         <div>
           ${languageSwitch(locale)}
           <p class="eyebrow">わざわざ · WAZAWAZA</p>
-          <h1>Места, ради которых<br>стоит свернуть с маршрута.</h1>
+          <h1>${copy.heroTitle}</h1>
         </div>
-        <p class="lede">Не “топ-10 Токио”, а странное, красивое, далёкое и очень конкретное.</p>
+        <p class="lede">${copy.heroLead}</p>
       </header>
 
-      <section class="stats" aria-label="Статистика">
-        <div><strong>${places.length}</strong><span>мест опубликовано</span></div>
-        <div><strong>${prefectureCount}</strong><span>префектур</span></div>
-        <div><strong>${routeCount}</strong><span>маршрутов</span></div>
+      <section class="stats" aria-label="${copy.statsLabel}">
+        <div><strong>${places.length}</strong><span>${copy.publishedPlaces}</span></div>
+        <div><strong>${prefectureCount}</strong><span>${copy.prefectures}</span></div>
+        <div><strong>${routeCount}</strong><span>${copy.routes}</span></div>
       </section>
 
       ${
@@ -122,76 +119,76 @@ function renderPlaces(places: Place[], routeCount: number, locale: "ru" | "ja" |
           ? `
             <section class="empty">
               <p class="eyebrow">DATABASE CONNECTED</p>
-              <h2>Связь есть. Публикаций пока нет.</h2>
-              <p>Это ожидаемо: после миграции все 726 мест остались в статусе draft.</p>
+              <h2>${copy.databaseEmptyTitle}</h2>
+              <p>${copy.databaseEmptyText}</p>
             </section>
           `
           : `
             <section class="filters">
               <div class="search-filter">
-                <label for="search-filter">Поиск</label>
+                <label for="search-filter">${copy.search}</label>
                 <div class="search-filter__field">
                   <input
                     id="search-filter"
                     type="search"
-                    placeholder="Название, тег, город или станция"
+                    placeholder="${copy.searchPlaceholder}"
                     autocomplete="off"
                   >
-                  <button id="search-clear" type="button" aria-label="Очистить поиск" hidden>×</button>
+                  <button id="search-clear" type="button" aria-label="${copy.clearSearch}" hidden>×</button>
                 </div>
               </div>
               <label>
-                <span>Префектура</span>
+                <span>${copy.prefecture}</span>
                 <select id="prefecture-filter">
-                  <option value="">Все</option>
+                  <option value="">${copy.allPrefectures}</option>
                   ${prefectures
                     .map(
                       (prefecture) =>
-                        `<option value="${escapeHtml(prefecture)}">${escapeHtml(prefectureLabel(prefecture))}</option>`
+                        `<option value="${escapeHtml(prefecture)}">${escapeHtml(prefectureLabel(prefecture, locale))}</option>`
                     )
                     .join("")}
                 </select>
               </label>
               <label>
-                <span>${categoryCopy.label}</span>
+                <span>${copy.category}</span>
                 <select id="category-filter">
-                  <option value="">${categoryCopy.all}</option>
+                  <option value="">${copy.allCategories}</option>
                   ${categories.map((category) =>
                     `<option value="${category.id}">${escapeHtml(category[locale])}</option>`
                   ).join("")}
                 </select>
               </label>
               <label>
-                <span>${visitCopy.label}</span>
+                <span>${copy.visit}</span>
                 <select id="visit-filter">
-                  <option value="">${visitCopy.all}</option>
-                  <option value="visited">${visitCopy.visited}</option>
-                  <option value="unvisited">${visitCopy.unvisited}</option>
+                  <option value="">${copy.allPlaces}</option>
+                  <option value="visited">${copy.visitedOnly}</option>
+                  <option value="unvisited">${copy.unvisitedOnly}</option>
                 </select>
               </label>
               <label class="adjacent-filter">
                 <input id="adjacent-filter" type="checkbox">
-                <span>Показывать соседние префектуры</span>
+                <span>${copy.adjacent}</span>
               </label>
-              <button id="filters-reset" class="filters-reset" type="button">Сбросить фильтры</button>
+              <button id="filters-reset" class="filters-reset" type="button">${copy.resetFilters}</button>
             </section>
             <section class="result-summary" aria-live="polite">
               <div>
                 <strong id="matching-count">${places.length}</strong>
-                <span>соответствуют фильтрам</span>
+                <span>${copy.matchingFilters}</span>
               </div>
               <div>
                 <strong id="visible-count">${places.length}</strong>
-                <span>видно на карте</span>
+                <span>${copy.visibleOnMap}</span>
               </div>
             </section>
             <section class="map-section">
               <div id="places-map" class="places-map"></div>
             </section>
             <section id="results-empty" class="filter-empty" hidden>
-              <p class="eyebrow">НИЧЕГО НЕ НАШЛОСЬ</p>
-              <h2>Попробуйте изменить поиск.</h2>
-              <p>Можно очистить запрос, выбрать другую префектуру или отдалить карту.</p>
+              <p class="eyebrow">${copy.nothingFound}</p>
+              <h2>${copy.changeSearch}</h2>
+              <p>${copy.changeSearchHint}</p>
             </section>
             <section class="grid">${cards}</section>
           `
@@ -362,13 +359,11 @@ function renderPlaces(places: Place[], routeCount: number, locale: "ru" | "ja" |
 
       if (heading && description) {
         if (matchingPlaces.length === 0) {
-          heading.textContent = "По вашему запросу ничего не найдено.";
-          description.textContent =
-            "Очистите поиск или выберите другую префектуру.";
+          heading.textContent = copy.noMatches;
+          description.textContent = copy.noMatchesHint;
         } else {
-          heading.textContent = "В этом фрагменте карты мест нет.";
-          description.textContent =
-            "Отдалите карту или переместитесь в другую область.";
+          heading.textContent = copy.noPlacesInView;
+          description.textContent = copy.noPlacesInViewHint;
         }
       }
     }
@@ -610,7 +605,8 @@ function renderPlaces(places: Place[], routeCount: number, locale: "ru" | "ja" |
             ),
           };
           renderState();
-        }
+        },
+        locale
       );
 
       placesMap = initializedMap;
@@ -660,7 +656,8 @@ function renderPlaces(places: Place[], routeCount: number, locale: "ru" | "ja" |
   }
 }
 
-function renderError(error: unknown): void {
+function renderError(error: unknown, locale: AppLocale): void {
+  const copy = uiCopy(locale);
   const message = error instanceof Error ? error.message : String(error);
 
   app!.innerHTML = `
@@ -668,7 +665,7 @@ function renderError(error: unknown): void {
       <header class="hero compact">
         <div>
           <p class="eyebrow">わざわざ · WAZAWAZA</p>
-          <h1>Не достучались до базы.</h1>
+          <h1>${copy.databaseError}</h1>
         </div>
       </header>
 
@@ -694,8 +691,8 @@ function escapeHtml(value: string): string {
   );
 }
 
-function languageSwitch(activeLocale: "ru" | "ja" | "en"): string {
-  return `<nav class="language-switch" aria-label="Язык">${(["ru", "ja", "en"] as const)
+function languageSwitch(activeLocale: AppLocale): string {
+  return `<nav class="language-switch" aria-label="${uiCopy(activeLocale).language}">${(["ru", "ja", "en"] as const)
     .map((locale) => {
       const url = new URL(location.href);
       url.searchParams.set("lang", locale);
@@ -704,15 +701,16 @@ function languageSwitch(activeLocale: "ru" | "ja" | "en"): string {
 }
 
 async function start(): Promise<void> {
-  renderLoading();
+  const requestedLocale = new URLSearchParams(location.search).get("lang");
+  const locale: AppLocale = requestedLocale === "ja" || requestedLocale === "en" ? requestedLocale : "ru";
+  document.documentElement.lang = locale;
+  renderLoading(locale);
 
   try {
-    const requestedLocale = new URLSearchParams(location.search).get("lang");
-    const locale: "ru" | "ja" | "en" = requestedLocale === "ja" || requestedLocale === "en" ? requestedLocale : "ru";
     const [places, routes] = await Promise.all([getPlaces(locale), getRoutes("ru")]);
     renderPlaces(places, routes.length, locale);
   } catch (error) {
-    renderError(error);
+    renderError(error, locale);
   }
 }
 
