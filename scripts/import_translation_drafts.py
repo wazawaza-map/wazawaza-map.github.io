@@ -26,10 +26,10 @@ def main() -> None:
     if not args.apply:
         print("Dry run only. Review the file, then add --apply to import.")
         return
-    url = os.environ.get("SUPABASE_URL")
-    key = os.environ.get("SUPABASE_SERVICE_ROLE_KEY")
+    url = os.environ.get("SUPABASE_URL") or os.environ.get("VITE_SUPABASE_URL")
+    key = os.environ.get("SUPABASE_SECRET_KEY") or os.environ.get("SUPABASE_SERVICE_ROLE_KEY")
     if not url or not key:
-        raise SystemExit("Set SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY. Never expose the service key to the frontend.")
+        raise SystemExit("Set SUPABASE_URL and SUPABASE_SECRET_KEY. Never expose the secret key to the frontend.")
     query = urllib.parse.urlencode({"on_conflict": "place_id,locale"})
     prefer = "resolution=merge-duplicates,return=minimal" if args.overwrite else "resolution=ignore-duplicates,return=minimal"
     request = urllib.request.Request(

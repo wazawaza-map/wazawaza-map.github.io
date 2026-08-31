@@ -289,13 +289,13 @@ def make_relation_rows(
 def main() -> None:
     source = sys.argv[1] if len(sys.argv) > 1 else DEFAULT_SOURCE
 
-    supabase_url = os.environ.get("SUPABASE_URL")
-    service_role_key = os.environ.get("SUPABASE_SERVICE_ROLE_KEY")
+    supabase_url = os.environ.get("SUPABASE_URL") or os.environ.get("VITE_SUPABASE_URL")
+    service_role_key = os.environ.get("SUPABASE_SECRET_KEY") or os.environ.get("SUPABASE_SERVICE_ROLE_KEY")
 
     if not supabase_url or not service_role_key:
         raise SystemExit(
-            "Set SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY before running.\n"
-            "Do not commit the service-role key or put it into the frontend."
+            "Set SUPABASE_URL and SUPABASE_SECRET_KEY before running.\n"
+            "Do not commit the secret key or put it into the frontend."
         )
 
     print(f"Loading source: {source}")

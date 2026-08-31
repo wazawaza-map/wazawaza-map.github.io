@@ -255,11 +255,11 @@ def make_route_place_rows(routes, route_id_map, place_id_map):
 
 def main():
     source = sys.argv[1] if len(sys.argv) > 1 else DEFAULT_SOURCE
-    url = os.environ.get("SUPABASE_URL")
-    key = os.environ.get("SUPABASE_SERVICE_ROLE_KEY")
+    url = os.environ.get("SUPABASE_URL") or os.environ.get("VITE_SUPABASE_URL")
+    key = os.environ.get("SUPABASE_SECRET_KEY") or os.environ.get("SUPABASE_SERVICE_ROLE_KEY")
     if not url or not key:
         raise SystemExit(
-            "Set SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY before running.\n"
+            "Set SUPABASE_URL and SUPABASE_SECRET_KEY before running.\n"
             "Do not commit the secret key or put it into the frontend."
         )
 
