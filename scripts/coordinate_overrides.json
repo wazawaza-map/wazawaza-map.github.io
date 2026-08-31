@@ -1,41 +1,147 @@
 {
-  "jp_1ch5g34": { "latitude": 34.178108, "longitude": 131.478622 },
-  "jp_02ibg2r": { "latitude": 34.178711, "longitude": 131.478317 },
-  "jp_12sa5pz": { "latitude": 35.0101265, "longitude": 135.768105 },
-  "jp_0lrmvl3": { "status": "draft" },
-  "jp_0lrmvl3_2": { "latitude": 35.2977354, "longitude": 139.4813837 },
-  "jp_1ml54j5": { "latitude": 35.4747915, "longitude": 138.6665393 },
-  "jp_18ktc9u": { "status": "draft" },
-  "jp_0zg01o9": { "latitude": 35.6600024, "longitude": 139.6987312 },
-  "jp_1db2yzz": { "latitude": 35.664635, "longitude": 139.70462 },
-  "jp_0lqjcu9": { "latitude": 35.670723, "longitude": 139.704788 },
-  "jp_09q1ews": { "latitude": 35.670776, "longitude": 139.479736 },
-  "jp_054ogji": { "latitude": 35.6662428, "longitude": 139.5026237 },
-  "jp_0mymcx2": { "latitude": 35.6826907, "longitude": 139.7643437 },
-  "jp_1db0uec_2": { "status": "draft" },
-  "jp_0gsavhd": { "latitude": 35.7049444, "longitude": 139.5771236 },
-  "jp_15mtus0": { "latitude": 35.704658, "longitude": 139.5747287 },
-  "jp_1nyft0q": { "latitude": 35.700695, "longitude": 139.5711865 },
-  "jp_1y0hxce": { "latitude": 35.7092407, "longitude": 139.6656853 },
-  "jp_0ose2qj": { "latitude": 35.7101011, "longitude": 139.8093338 },
-  "jp_14vnmmh": { "latitude": 35.7118027, "longitude": 139.4094381 },
-  "jp_1lz1jke": { "latitude": 35.7122591, "longitude": 139.3943216 },
-  "jp_05oodrh": { "latitude": 35.696358, "longitude": 139.419891 },
-  "jp_1nq28m0": { "latitude": 35.6987812, "longitude": 139.4182267 },
-  "jp_1sieasc": { "latitude": 35.695591, "longitude": 139.42009 },
-  "jp_0rxy9bm": { "latitude": 35.7014227, "longitude": 139.4137502 },
-  "jp_1gk01rl": { "latitude": 35.720364, "longitude": 139.464783 },
-  "jp_1z02m35": { "latitude": 35.741918, "longitude": 139.500412 },
-  "jp_0v21i1t": { "latitude": 35.7247892, "longitude": 139.7685576 },
-  "jp_0cvctxb": { "latitude": 35.7272396, "longitude": 139.1881471 },
-  "jp_15niyyn": { "latitude": 35.7469079, "longitude": 139.2091329 },
-  "jp_0ep0orn": { "latitude": 35.8009016, "longitude": 139.1848433 },
-  "jp_1szyxxr": { "latitude": 35.7960037, "longitude": 139.1613433 },
-  "jp_16f2k57": { "latitude": 35.8111087, "longitude": 139.1239588 },
-  "jp_1q3kcuy": { "latitude": 35.8131774, "longitude": 139.1291762 },
-  "jp_0b9vpe6": { "latitude": 35.9145787, "longitude": 138.4195054 },
-  "jp_1w3xi98": { "status": "draft" },
-  "jp_07cuv2n_2": { "status": "draft" },
+  "jp_1ch5g34": {
+    "latitude": 34.178108,
+    "longitude": 131.478622
+  },
+  "jp_02ibg2r": {
+    "latitude": 34.178711,
+    "longitude": 131.478317
+  },
+  "jp_12sa5pz": {
+    "latitude": 35.0101265,
+    "longitude": 135.768105
+  },
+  "jp_0lrmvl3": {
+    "status": "draft"
+  },
+  "jp_0lrmvl3_2": {
+    "latitude": 35.2977354,
+    "longitude": 139.4813837
+  },
+  "jp_1ml54j5": {
+    "latitude": 35.4747915,
+    "longitude": 138.6665393
+  },
+  "jp_18ktc9u": {
+    "status": "draft"
+  },
+  "jp_0zg01o9": {
+    "latitude": 35.6600024,
+    "longitude": 139.6987312
+  },
+  "jp_1db2yzz": {
+    "latitude": 35.664635,
+    "longitude": 139.70462
+  },
+  "jp_0lqjcu9": {
+    "latitude": 35.670723,
+    "longitude": 139.704788
+  },
+  "jp_09q1ews": {
+    "latitude": 35.670776,
+    "longitude": 139.479736
+  },
+  "jp_054ogji": {
+    "latitude": 35.6662428,
+    "longitude": 139.5026237
+  },
+  "jp_0mymcx2": {
+    "latitude": 35.6826907,
+    "longitude": 139.7643437
+  },
+  "jp_1db0uec_2": {
+    "status": "draft"
+  },
+  "jp_0gsavhd": {
+    "latitude": 35.7049444,
+    "longitude": 139.5771236
+  },
+  "jp_15mtus0": {
+    "latitude": 35.704658,
+    "longitude": 139.5747287
+  },
+  "jp_1nyft0q": {
+    "latitude": 35.700695,
+    "longitude": 139.5711865
+  },
+  "jp_1y0hxce": {
+    "latitude": 35.7092407,
+    "longitude": 139.6656853
+  },
+  "jp_0ose2qj": {
+    "latitude": 35.7101011,
+    "longitude": 139.8093338
+  },
+  "jp_14vnmmh": {
+    "latitude": 35.7118027,
+    "longitude": 139.4094381
+  },
+  "jp_1lz1jke": {
+    "latitude": 35.7122591,
+    "longitude": 139.3943216
+  },
+  "jp_05oodrh": {
+    "latitude": 35.696358,
+    "longitude": 139.419891
+  },
+  "jp_1nq28m0": {
+    "latitude": 35.6987812,
+    "longitude": 139.4182267
+  },
+  "jp_1sieasc": {
+    "latitude": 35.695591,
+    "longitude": 139.42009
+  },
+  "jp_0rxy9bm": {
+    "latitude": 35.7014227,
+    "longitude": 139.4137502
+  },
+  "jp_1gk01rl": {
+    "latitude": 35.720364,
+    "longitude": 139.464783
+  },
+  "jp_1z02m35": {
+    "latitude": 35.741918,
+    "longitude": 139.500412
+  },
+  "jp_0v21i1t": {
+    "latitude": 35.7247892,
+    "longitude": 139.7685576
+  },
+  "jp_0cvctxb": {
+    "latitude": 35.7272396,
+    "longitude": 139.1881471
+  },
+  "jp_15niyyn": {
+    "latitude": 35.7469079,
+    "longitude": 139.2091329
+  },
+  "jp_0ep0orn": {
+    "latitude": 35.8009016,
+    "longitude": 139.1848433
+  },
+  "jp_1szyxxr": {
+    "latitude": 35.7960037,
+    "longitude": 139.1613433
+  },
+  "jp_16f2k57": {
+    "latitude": 35.8111087,
+    "longitude": 139.1239588
+  },
+  "jp_1q3kcuy": {
+    "latitude": 35.8131774,
+    "longitude": 139.1291762
+  },
+  "jp_0b9vpe6": {
+    "latitude": 35.9145787,
+    "longitude": 138.4195054
+  },
+  "jp_1w3xi98": {
+    "status": "draft"
+  },
+  "jp_07cuv2n_2": {
+    "status": "draft"
+  },
   "jp_13wmexo": {
     "latitude": 35.312986,
     "longitude": 139.533521,
@@ -61,15 +167,24 @@
       "name": "弁天窟 (Benten-kutsu)",
       "summary": "弁天窟 — небольшая рукотворная пещера на территории храма 長谷寺 в Камакуре.",
       "interest": "В стенах высечены Бэндзайтэн и шестнадцать её спутников; короткое, тесное и очень атмосферное подземное святилище.",
-      "prefecture": { "jp": "神奈川県", "ru": "Канагава" },
-      "area": { "jp": "鎌倉市長谷", "ru": "Камакура · Хасэ" },
+      "prefecture": {
+        "jp": "神奈川県",
+        "ru": "Канагава"
+      },
+      "area": {
+        "jp": "鎌倉市長谷",
+        "ru": "Камакура · Хасэ"
+      },
       "location": {
         "lat": 35.312986,
         "lng": 139.533521,
         "nearestStation": "長谷駅 (станция Хасэ)",
         "stationWalkMin": 5
       },
-      "cluster": { "id": "kanagawa_kamakura_hase", "name": "Камакура · Хасэ" },
+      "cluster": {
+        "id": "kanagawa_kamakura_hase",
+        "name": "Камакура · Хасэ"
+      },
       "links": {
         "googleMaps": "https://www.google.com/maps/place/Benten+Cave/data=!4m2!3m1!1s0x601845f3f066881b:0x893bf09de79c9bbe",
         "officialOrSource": "https://www.hasedera.jp/about/"
@@ -105,15 +220,24 @@
       "name": "idobata",
       "summary": "idobata — маленький coffee stand в переоборудованном kei van рядом со станцией 長谷 в Камакуре.",
       "interest": "Кофе мелют и заваривают вручную; вокруг фургона есть книги и небольшие товары, а сама точка ощущается как местное место встречи.",
-      "prefecture": { "jp": "神奈川県", "ru": "Канагава" },
-      "area": { "jp": "鎌倉市長谷", "ru": "Камакура · Хасэ" },
+      "prefecture": {
+        "jp": "神奈川県",
+        "ru": "Канагава"
+      },
+      "area": {
+        "jp": "鎌倉市長谷",
+        "ru": "Камакура · Хасэ"
+      },
       "location": {
         "lat": 35.311615,
         "lng": 139.53569,
         "nearestStation": "長谷駅 (станция Хасэ)",
         "stationWalkMin": 1
       },
-      "cluster": { "id": "kanagawa_kamakura_hase", "name": "Камакура · Хасэ" },
+      "cluster": {
+        "id": "kanagawa_kamakura_hase",
+        "name": "Камакура · Хасэ"
+      },
       "links": {
         "googleMaps": "https://maps.app.goo.gl/ynM5ugmihwvf16bW8?g_st=ic",
         "officialOrSource": "https://tabelog.com/kanagawa/A1404/A140402/14054508/"
@@ -127,5 +251,205 @@
   "jp_16vu9nd": {
     "latitude": 39.9292411,
     "longitude": 139.7665485
+  },
+  "jp_0lsuj0f": {
+    "latitude": 35.6586207,
+    "longitude": 139.6916654
+  },
+  "jp_0mqwgoz": {
+    "latitude": 35.6554577,
+    "longitude": 139.6999651
+  },
+  "jp_0f215s0": {
+    "latitude": 36.2621472,
+    "longitude": 137.98893429999998
+  },
+  "jp_0gp9xdw": {
+    "latitude": 34.9149168,
+    "longitude": 136.0162153
+  },
+  "jp_0odtk6x": {
+    "latitude": 35.6600812,
+    "longitude": 139.703736
+  },
+  "jp_14k3g34": {
+    "latitude": 35.620242399999995,
+    "longitude": 139.7055394
+  },
+  "jp_0hzptbi": {
+    "latitude": 35.730722899999996,
+    "longitude": 139.7062053
+  },
+  "jp_0u8ovon": {
+    "latitude": 35.7250076,
+    "longitude": 139.6960471
+  },
+  "jp_08e972m": {
+    "latitude": 35.661217799999996,
+    "longitude": 139.69820389999998
+  },
+  "jp_0prxyb7": {
+    "latitude": 35.667898,
+    "longitude": 139.7051764
+  },
+  "jp_0yz4956": {
+    "latitude": 36.5713843,
+    "longitude": 136.66297509999998
+  },
+  "jp_199bkj1": {
+    "latitude": 34.7381327,
+    "longitude": 135.57374679999998
+  },
+  "jp_1tudjm4": {
+    "latitude": 34.1835464,
+    "longitude": 131.47816269999998
+  },
+  "jp_09gb3j0": {
+    "latitude": 35.7573995,
+    "longitude": 139.87591079999999
+  },
+  "jp_0jqdoqi": {
+    "latitude": 35.6906774,
+    "longitude": 139.706706
+  },
+  "jp_1ouig25": {
+    "latitude": 35.661308,
+    "longitude": 139.71558299999998
+  },
+  "jp_1lia3dw": {
+    "latitude": 36.234335099999996,
+    "longitude": 137.9723814
+  },
+  "jp_01xjnay": {
+    "latitude": 35.6662411,
+    "longitude": 139.71378389999998
+  },
+  "jp_16r2mnx": {
+    "latitude": 39.630045599999995,
+    "longitude": 140.6993954
+  },
+  "jp_0jn08bi": {
+    "latitude": 34.391492,
+    "longitude": 132.4532061
+  },
+  "jp_0y5n61a": {
+    "latitude": 35.6340609,
+    "longitude": 139.7151539
+  },
+  "jp_0bw8ko4": {
+    "latitude": 35.6977208,
+    "longitude": 139.65212409999998
+  },
+  "jp_0v0b7ir": {
+    "latitude": 35.7051277,
+    "longitude": 139.6519248
+  },
+  "jp_0yobxly": {
+    "latitude": 35.6711984,
+    "longitude": 139.7164832
+  },
+  "jp_1nqqgrc": {
+    "latitude": 35.6900956,
+    "longitude": 139.7027731
+  },
+  "jp_05qwq8i": {
+    "latitude": 35.7102666,
+    "longitude": 139.8121601
+  },
+  "jp_05t0znf": {
+    "latitude": 36.2308382,
+    "longitude": 138.1402043
+  },
+  "jp_1p0gsj5": {
+    "latitude": 36.233878,
+    "longitude": 137.9704644
+  },
+  "jp_1pb89zj": {
+    "latitude": 35.6600497,
+    "longitude": 139.70149809999998
+  },
+  "jp_165u2by": {
+    "latitude": 35.3100048,
+    "longitude": 139.47942799999998
+  },
+  "jp_0nk4qow": {
+    "latitude": 36.2337529,
+    "longitude": 137.9730329
+  },
+  "jp_1iyjzmb": {
+    "latitude": 35.6735313,
+    "longitude": 139.762589
+  },
+  "jp_06lndv8": {
+    "latitude": 35.7046322,
+    "longitude": 139.7831033
+  },
+  "jp_0kdrmhs": {
+    "latitude": 35.697348999999996,
+    "longitude": 139.776655
+  },
+  "jp_034on6k": {
+    "latitude": 34.174856999999996,
+    "longitude": 131.475982
+  },
+  "jp_077qoia": {
+    "latitude": 35.527324,
+    "longitude": 138.7598324
+  },
+  "jp_0zvi89f": {
+    "latitude": 35.7296786,
+    "longitude": 139.71438469999998
+  },
+  "jp_0qod1hx": {
+    "latitude": 33.6824446,
+    "longitude": 131.52363219999998
+  },
+  "jp_1vxn4vu": {
+    "latitude": 40.8975,
+    "longitude": 140.8627778
+  },
+  "jp_1cauuoa": {
+    "latitude": 35.7267059,
+    "longitude": 139.7682525
+  },
+  "jp_0fdyg8m": {
+    "latitude": 35.638951,
+    "longitude": 139.63162699999998
+  },
+  "jp_0nqvwhr": {
+    "latitude": 35.6563933,
+    "longitude": 139.7111598
+  },
+  "jp_1tau19q": {
+    "latitude": 35.6592835,
+    "longitude": 139.7020837
+  },
+  "jp_1r1c2r9": {
+    "latitude": 35.6600118,
+    "longitude": 139.6988155
+  },
+  "jp_029n3w1": {
+    "latitude": 35.0043193,
+    "longitude": 135.7767872
+  },
+  "jp_0syq3ma": {
+    "latitude": 35.608061,
+    "longitude": 139.557501
+  },
+  "jp_05cxy3u": {
+    "latitude": 34.8915564,
+    "longitude": 139.1167942
+  },
+  "jp_0f9pzwz": {
+    "latitude": 35.6709257,
+    "longitude": 139.70559079999998
+  },
+  "jp_01ww5bi": {
+    "latitude": 35.6615867,
+    "longitude": 139.7004778
+  },
+  "jp_0o6rza5": {
+    "latitude": 35.3645953,
+    "longitude": 136.4622068
   }
 }
