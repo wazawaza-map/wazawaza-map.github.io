@@ -1120,6 +1120,31 @@
     "latitude": 35.665431999999996,
     "longitude": 139.7313833
   },
+  "jp_045qe26": {
+    "latitude": 38.3467313,
+    "longitude": 141.0573519,
+    "google_maps_url": "https://www.google.com/maps/place/%E9%A6%AC%E3%81%AE%E8%83%8C/data=!4m2!3m1!1s0x5f899aded6432b51:0x1f29914766079d47"
+  },
+  "jp_0a9qnpi": {
+    "latitude": 34.7499419,
+    "longitude": 139.3559809,
+    "google_maps_url": "https://www.google.com/maps/place/%E6%9D%B1%E4%BA%AC%E9%83%BD%E5%A4%A7%E5%B3%B6%E7%94%BA/data=!4m2!3m1!1s0x601782da46f6e98f:0x3cc66687dc561834"
+  },
+  "jp_1vz39mx": {
+    "latitude": 33.7543635,
+    "longitude": 130.9043258,
+    "google_maps_url": "https://www.google.com/maps/place/%E5%8D%83%E4%BB%8F%E9%8D%BE%E4%B9%B3%E6%B4%9E/data=!4m2!3m1!1s0x3543c3a6e2de2587:0x9afd624a90392e42"
+  },
+  "jp_0a6t81v": {
+    "latitude": 35.5546314,
+    "longitude": 137.5889153,
+    "google_maps_url": "https://www.google.com/maps/place/%E7%94%B7%E6%BB%9D%E5%A5%B3%E6%BB%9D/data=!4m2!3m1!1s0x601cb7ab8170dc5d:0xf8f4be7339a9176c"
+  },
+  "jp_0ugzj83": {
+    "latitude": 35.2589772,
+    "longitude": 138.8116172,
+    "google_maps_url": "https://www.google.com/maps/place/%E5%AF%8C%E5%A3%AB%E3%82%B5%E3%83%95%E3%82%A1%E3%83%AA%E3%83%91%E3%83%BC%E3%82%AF/data=!4m2!3m1!1s0x601978d83e616a47:0xb9d624b087eb61af"
+  },
   "jp_1fjy5g4": {
     "latitude": 35.5610366,
     "longitude": 133.3028708,
