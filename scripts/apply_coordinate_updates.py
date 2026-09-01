@@ -90,6 +90,12 @@ def validate_updates(value: Any) -> list[dict[str, Any]]:
         for field in ("old_longitude", "new_longitude"):
             if not 120 <= float(row[field]) <= 155:
                 raise ValueError(f"{field} for #{place_id} is outside Japan.")
+        for field in ("google_maps_url", "new_google_maps_url"):
+            url = row.get(field)
+            if url is not None and not str(url).startswith(
+                ("https://www.google.com/maps/", "https://maps.app.goo.gl/")
+            ):
+                raise ValueError(f"{field} for #{place_id} is not a Google Maps URL.")
         updates.append(row)
     return updates
 
@@ -155,19 +161,24 @@ def main() -> None:
     applied: list[dict[str, Any]] = []
     for update in updates:
         place_id = update["id"]
+        old_google_maps_url = update["google_maps_url"]
         query = urllib.parse.urlencode({
             "id": f"eq.{place_id}",
             "latitude": f"eq.{update['old_latitude']}",
             "longitude": f"eq.{update['old_longitude']}",
-            "select": "id,legacy_id,latitude,longitude,updated_at",
+            "google_maps_url": f"eq.{old_google_maps_url}",
+            "select": "id,legacy_id,latitude,longitude,google_maps_url,updated_at",
         })
+        payload = {
+            "latitude": update["new_latitude"],
+            "longitude": update["new_longitude"],
+        }
+        if "new_google_maps_url" in update:
+            payload["google_maps_url"] = update["new_google_maps_url"]
         rows = db.request(
             "PATCH",
             f"/places?{query}",
-            {
-                "latitude": update["new_latitude"],
-                "longitude": update["new_longitude"],
-            },
+            payload,
             "return=representation",
         ) or []
         if len(rows) != 1:
@@ -188,6 +199,11 @@ def main() -> None:
         for row in updates
         if not close(verified[row["id"]]["latitude"], row["new_latitude"])
         or not close(verified[row["id"]]["longitude"], row["new_longitude"])
+        or (
+            "new_google_maps_url" in row
+            and verified[row["id"]]["google_maps_url"]
+            != row["new_google_maps_url"]
+        )
     ]
     print(
         json.dumps(
