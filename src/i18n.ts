@@ -11,7 +11,7 @@ const COPY = {
     nothingFound: "НИЧЕГО НЕ НАШЛОСЬ", changeSearch: "Попробуйте изменить поиск.", changeSearchHint: "Можно очистить запрос, выбрать другую префектуру или отдалить карту.",
     noMatches: "По вашему запросу ничего не найдено.", noMatchesHint: "Очистите поиск или выберите другую префектуру.", noPlacesInView: "В этом фрагменте карты мест нет.", noPlacesInViewHint: "Отдалите карту или переместитесь в другую область.",
     unnamed: "Без названия", place: "Место", descriptionSoon: "Описание скоро появится.", openPlace: "Открыть", transitWalk: "мин от транспорта", close: "Закрыть",
-    time: "Время", fromStation: "От станции", environment: "Среда", nearestStation: "Ближайшая станция", directions: "Как добраться", hoursAndSeason: "Часы и сезон", price: "Цена", reservation: "Бронирование",
+    whyInteresting: "Почему интересно", time: "Время", fromStation: "От станции", environment: "Среда", nearestStation: "Ближайшая станция", directions: "Как добраться", hoursAndSeason: "Часы и сезон", price: "Цена", reservation: "Бронирование",
     openMaps: "Открыть в Google Maps ↗", officialSite: "Официальный сайт ↗", language: "Язык", databaseError: "Не достучались до базы.",
   },
   ja: {
@@ -24,7 +24,7 @@ const COPY = {
     nothingFound: "見つかりませんでした", changeSearch: "検索条件を変えてみてください。", changeSearchHint: "検索をクリアするか、別の都道府県を選ぶか、地図を縮小してください。",
     noMatches: "条件に一致する場所がありません。", noMatchesHint: "検索をクリアするか、別の都道府県を選んでください。", noPlacesInView: "この地図範囲には場所がありません。", noPlacesInViewHint: "地図を縮小するか、別の地域へ移動してください。",
     unnamed: "名称未設定", place: "場所", descriptionSoon: "説明は準備中です。", openPlace: "開く", transitWalk: "分（交通機関から）", close: "閉じる",
-    time: "所要時間", fromStation: "駅から", environment: "環境", nearestStation: "最寄り駅", directions: "アクセス", hoursAndSeason: "営業時間・季節", price: "料金", reservation: "予約",
+    whyInteresting: "見どころ", time: "所要時間", fromStation: "駅から", environment: "環境", nearestStation: "最寄り駅", directions: "アクセス", hoursAndSeason: "営業時間・季節", price: "料金", reservation: "予約",
     openMaps: "Google Mapsで開く ↗", officialSite: "公式サイト ↗", language: "言語", databaseError: "データベースに接続できませんでした。",
   },
   en: {
@@ -37,7 +37,7 @@ const COPY = {
     nothingFound: "NOTHING FOUND", changeSearch: "Try changing your search.", changeSearchHint: "Clear the query, choose another prefecture or zoom out on the map.",
     noMatches: "No places match your search.", noMatchesHint: "Clear the search or choose another prefecture.", noPlacesInView: "There are no places in this map area.", noPlacesInViewHint: "Zoom out or move to another area.",
     unnamed: "Untitled", place: "Place", descriptionSoon: "Description coming soon.", openPlace: "Open", transitWalk: "min from transit", close: "Close",
-    time: "Time", fromStation: "From station", environment: "Setting", nearestStation: "Nearest station", directions: "Getting there", hoursAndSeason: "Hours & season", price: "Price", reservation: "Reservation",
+    whyInteresting: "Why it’s interesting", time: "Time", fromStation: "From station", environment: "Setting", nearestStation: "Nearest station", directions: "Getting there", hoursAndSeason: "Hours & season", price: "Price", reservation: "Reservation",
     openMaps: "Open in Google Maps ↗", officialSite: "Official website ↗", language: "Language", databaseError: "Could not reach the database.",
   },
 } as const;

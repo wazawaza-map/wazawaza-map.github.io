@@ -38,10 +38,8 @@ export function openPlaceDrawer(
       )}</p>
       ${place.visited || place.visited_at ? `<p class="visited-chip">${escapeHtml(visitedLabel(place.visited_at, options.locale))}</p>` : ""}
       ${
-        translation?.interest || translation?.summary
-          ? `<p class="place-drawer__lead">${escapeHtml(
-              translation.interest ?? translation.summary ?? ""
-            )}</p>`
+        translation?.summary
+          ? `<p class="place-drawer__lead">${escapeHtml(translation.summary)}</p>`
           : ""
       }
       <div class="place-drawer__facts">
@@ -54,6 +52,7 @@ export function openPlaceDrawer(
         )}
         ${fact(copy.environment, environmentLabel(place.indoor_outdoor, locale))}
       </div>
+      ${detail(copy.whyInteresting, translation?.interest)}
       ${detail(copy.nearestStation, translation?.nearest_station)}
       ${detail(copy.directions, translation?.access_note, place.access_modes)}
       ${detail(
