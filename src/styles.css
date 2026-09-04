@@ -10,6 +10,10 @@
   box-sizing: border-box;
 }
 
+[hidden] {
+  display: none !important;
+}
+
 body {
   margin: 0;
   min-width: 320px;
@@ -119,6 +123,33 @@ h1 {
 
 .stats span {
   font-size: 13px;
+}
+
+.view-switch {
+  display: flex;
+  gap: 8px;
+  padding: 24px 0 0;
+}
+
+.view-switch button {
+  min-width: 150px;
+  padding: 11px 18px;
+  border: 1px solid #262626;
+  border-radius: 999px;
+  background: transparent;
+  color: #191919;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.view-switch button[aria-pressed="true"] {
+  background: #191919;
+  color: #f1eee6;
+}
+
+.view-switch button:focus-visible {
+  outline: 2px solid #262626;
+  outline-offset: 3px;
 }
 
 .empty h2 {
@@ -292,6 +323,117 @@ h1 {
 .map-section {
   margin: 32px 0 56px;
   border: 1px solid #262626;
+}
+
+.prefectures-view {
+  padding-top: 32px;
+}
+
+.prefectures-view__intro {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 36px;
+  align-items: end;
+  margin-bottom: 24px;
+}
+
+.prefectures-view__intro > div > p:last-child {
+  max-width: 720px;
+  margin-bottom: 0;
+  line-height: 1.55;
+}
+
+.prefectures-view__count {
+  display: flex;
+  gap: 9px;
+  align-items: baseline;
+  margin: 0;
+  white-space: nowrap;
+}
+
+.prefectures-view__count strong {
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 54px;
+  font-weight: 500;
+  line-height: 1;
+}
+
+.prefectures-view__count span {
+  font-size: 18px;
+}
+
+.prefectures-map-shell {
+  position: relative;
+  border: 1px solid #262626;
+  background: #e9e5da;
+}
+
+.prefectures-map {
+  width: 100%;
+  height: min(72vh, 720px);
+  min-height: 480px;
+  background: #e9e5da;
+}
+
+.prefectures-map--error {
+  display: grid;
+  place-items: center;
+  padding: 32px;
+  text-align: center;
+}
+
+.prefectures-map .leaflet-interactive {
+  cursor: pointer;
+  transition: fill-opacity 120ms ease;
+}
+
+.prefectures-map__legend {
+  position: absolute;
+  right: 14px;
+  bottom: 14px;
+  z-index: 500;
+  display: grid;
+  gap: 7px;
+  padding: 10px 12px;
+  border: 1px solid #262626;
+  background: rgba(241, 238, 230, .94);
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.prefectures-map__legend span {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.prefectures-map__legend i {
+  width: 13px;
+  height: 13px;
+  border: 1px solid #262626;
+  background: #ded9cc;
+}
+
+.prefectures-map__legend i.is-visited {
+  background: #b25735;
+}
+
+.map-data-credit {
+  margin: 8px 0 0;
+  color: #68645c;
+  font-size: 10px;
+  text-align: right;
+}
+
+.map-data-credit a {
+  color: inherit;
+}
+
+.prefectures-map .leaflet-interactive:focus-visible {
+  stroke-width: 3;
+  stroke: #191919;
+  fill-opacity: 1;
+  outline: none;
 }
 
 .places-map {
@@ -538,6 +680,20 @@ h1 {
 }
 
 @media (max-width: 560px) {
+  .view-switch button {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .prefectures-view__intro {
+    grid-template-columns: 1fr;
+    gap: 18px;
+  }
+
+  .prefectures-map {
+    min-height: 430px;
+  }
+
   .result-summary {
     justify-content: space-between;
     gap: 16px;

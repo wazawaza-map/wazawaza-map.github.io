@@ -32,6 +32,10 @@ const ENGLISH_NAMES: Record<string, string> = {
   "埼玉県・群馬県・栃木県": "Saitama, Gunma & Tochigi",
 };
 
+export const PREFECTURE_NAMES = Object.keys(ENGLISH_NAMES).filter(
+  (name) => !name.includes("・")
+);
+
 const ADJACENT: Record<string, string[]> = {
   青森県: ["岩手県", "秋田県"], 岩手県: ["青森県", "宮城県", "秋田県"],
   宮城県: ["岩手県", "秋田県", "山形県", "福島県"], 秋田県: ["青森県", "岩手県", "宮城県", "山形県"],

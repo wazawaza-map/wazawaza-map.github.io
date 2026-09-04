@@ -2,15 +2,16 @@ import "./styles.css";
 import { getPlaces, getRoutes } from "./supabase";
 import type { Place } from "./types";
 import { createPlacesMap } from "./map";
+import { createPrefectureMap } from "./prefecture-map";
 import {
   createInitialState,
   getMatchingPlaces,
   getVisiblePlaces,
 } from "./state";
 import { openPlaceDrawer, type PlaceDrawer } from "./drawer";
-import { prefectureLabel } from "./prefectures";
+import { prefectureLabel, PREFECTURE_NAMES } from "./prefectures";
 import { CATEGORIES, categoryLabel, normalizeCategory, type AppLocale } from "./categories";
-import { visitedLabel } from "./visited";
+import { visitedLabel, getVisitedPrefectureCounts } from "./visited";
 import { environmentLabel, formatMinutes, uiCopy } from "./i18n";
 
 const app = document.querySelector<HTMLDivElement>("#app");
@@ -88,7 +89,7 @@ function renderPlaces(places: Place[], routeCount: number, locale: AppLocale): v
     .join("");
 
   const prefectures = Array.from(
-    new Set(places.map((place) => place.prefecture))
+    new Set([...PREFECTURE_NAMES, ...places.map((place) => place.prefecture)])
   ).sort((a, b) => prefectureLabel(a, locale).localeCompare(prefectureLabel(b, locale), locale));
   const availableCategoryIds = new Set(
     places.map((place) => normalizeCategory(place.category)).filter(Boolean)
@@ -96,6 +97,16 @@ function renderPlaces(places: Place[], routeCount: number, locale: AppLocale): v
   const categories = CATEGORIES.filter((category) =>
     availableCategoryIds.has(category.id)
   );
+  const visitedPlaceCounts = getVisitedPrefectureCounts(places);
+  const visitedPrefectures = new Set(
+    Array.from(visitedPlaceCounts.keys()).filter(
+      (prefecture) => PREFECTURE_NAMES.includes(prefecture)
+    )
+  );
+  const initialParams = new URLSearchParams(location.search);
+  const initialView = initialParams.get("view") === "prefectures"
+    ? "prefectures"
+    : "places";
 
   app!.innerHTML = `
     <main class="shell">
@@ -124,7 +135,11 @@ function renderPlaces(places: Place[], routeCount: number, locale: AppLocale): v
             </section>
           `
           : `
-            <section class="filters">
+            <nav class="view-switch" aria-label="${copy.viewLabel}">
+              <button type="button" data-map-view="places" aria-pressed="${initialView === "places"}">${copy.placesView}</button>
+              <button type="button" data-map-view="prefectures" aria-pressed="${initialView === "prefectures"}">${copy.prefecturesView}</button>
+            </nav>
+            <section class="filters" data-view-content="places"${initialView === "prefectures" ? " hidden" : ""}>
               <div class="search-filter">
                 <label for="search-filter">${copy.search}</label>
                 <div class="search-filter__field">
@@ -172,7 +187,7 @@ function renderPlaces(places: Place[], routeCount: number, locale: AppLocale): v
               </label>
               <button id="filters-reset" class="filters-reset" type="button">${copy.resetFilters}</button>
             </section>
-            <section class="result-summary" aria-live="polite">
+            <section class="result-summary" data-view-content="places" aria-live="polite"${initialView === "prefectures" ? " hidden" : ""}>
               <div>
                 <strong id="matching-count">${places.length}</strong>
                 <span>${copy.matchingFilters}</span>
@@ -182,15 +197,32 @@ function renderPlaces(places: Place[], routeCount: number, locale: AppLocale): v
                 <span>${copy.visibleOnMap}</span>
               </div>
             </section>
-            <section class="map-section">
+            <section class="map-section" data-view-content="places"${initialView === "prefectures" ? " hidden" : ""}>
               <div id="places-map" class="places-map"></div>
             </section>
-            <section id="results-empty" class="filter-empty" hidden>
+            <section id="results-empty" class="filter-empty" data-view-content="places" hidden>
               <p class="eyebrow">${copy.nothingFound}</p>
               <h2>${copy.changeSearch}</h2>
               <p>${copy.changeSearchHint}</p>
             </section>
-            <section class="grid">${cards}</section>
+            <section class="grid" data-view-content="places"${initialView === "prefectures" ? " hidden" : ""}>${cards}</section>
+            <section id="prefectures-view" class="prefectures-view"${initialView === "places" ? " hidden" : ""}>
+              <div class="prefectures-view__intro">
+                <div>
+                  <p class="eyebrow">${copy.visitedPrefectures}</p>
+                  <p>${copy.visitedPrefecturesHint}</p>
+                </div>
+                <p class="prefectures-view__count"><strong>${visitedPrefectures.size}</strong><span>/ 47</span></p>
+              </div>
+              <div class="prefectures-map-shell">
+                <div id="prefectures-map" class="prefectures-map" aria-label="${copy.visitedPrefectures}"></div>
+                <div class="prefectures-map__legend" aria-hidden="true">
+                  <span><i class="is-visited"></i>${copy.prefectureVisited}</span>
+                  <span><i></i>${copy.prefectureNotVisited}</span>
+                </div>
+              </div>
+              <p class="map-data-credit"><a href="https://github.com/northprint/japan-map-selector" target="_blank" rel="noreferrer">${copy.mapDataCredit}</a></p>
+            </section>
           `
       }
     </main>
@@ -232,11 +264,28 @@ function renderPlaces(places: Place[], routeCount: number, locale: AppLocale): v
   const resultsEmpty =
     document.querySelector<HTMLElement>("#results-empty");
 
+  const prefecturesView =
+    document.querySelector<HTMLElement>("#prefectures-view");
+
+  const prefecturesMapElement =
+    document.querySelector<HTMLDivElement>("#prefectures-map");
+
+  const viewButtons = Array.from(
+    document.querySelectorAll<HTMLButtonElement>("[data-map-view]")
+  );
+
+  const placesViewElements = Array.from(
+    document.querySelectorAll<HTMLElement>('[data-view-content="places"]')
+  );
+
   let placesMap: ReturnType<typeof createPlacesMap> | undefined;
+  let placesMapLoading = false;
+  let prefectureMap: Awaited<ReturnType<typeof createPrefectureMap>> | undefined;
+  let prefectureMapLoading = false;
+  let activeView: "places" | "prefectures" = initialView;
   let state = createInitialState(places);
   let activeDrawer: PlaceDrawer | undefined;
   let searchTimer: number | undefined;
-  const initialParams = new URLSearchParams(location.search);
   const requestedPlace = initialParams.get("place");
   const requestedPrefecture = initialParams.get("pref") ?? "";
   const requestedCategory = initialParams.get("cat") ?? "";
@@ -346,11 +395,11 @@ function renderPlaces(places: Place[], routeCount: number, locale: AppLocale): v
     }
 
     if (cardsGrid) {
-      cardsGrid.hidden = visiblePlaces.length === 0;
+      cardsGrid.hidden = activeView === "prefectures" || visiblePlaces.length === 0;
     }
 
     if (resultsEmpty) {
-      resultsEmpty.hidden = visiblePlaces.length > 0;
+      resultsEmpty.hidden = activeView === "prefectures" || visiblePlaces.length > 0;
 
       const heading = resultsEmpty.querySelector<HTMLElement>("h2");
       const description = resultsEmpty.querySelector<HTMLElement>(
@@ -415,7 +464,19 @@ function renderPlaces(places: Place[], routeCount: number, locale: AppLocale): v
       url.searchParams.delete("adjacent");
     }
 
+    if (activeView === "prefectures") {
+      url.searchParams.set("view", "prefectures");
+    } else {
+      url.searchParams.delete("view");
+    }
+
     history.replaceState(null, "", url);
+    document.querySelectorAll<HTMLAnchorElement>(".language-switch a").forEach((link) => {
+      const targetLocale = new URL(link.href).searchParams.get("lang");
+      const targetUrl = new URL(url);
+      if (targetLocale) targetUrl.searchParams.set("lang", targetLocale);
+      link.href = targetUrl.pathname + targetUrl.search;
+    });
   }
 
   function clearSelectionForFilters(): void {
@@ -582,10 +643,15 @@ function renderPlaces(places: Place[], routeCount: number, locale: AppLocale): v
     searchInput.focus();
   });
 
-  renderState();
+  function initializePlacesMap(): void {
+    if (!mapElement || places.length === 0 || placesMap || placesMapLoading) return;
+    placesMapLoading = true;
 
-  if (mapElement && places.length > 0) {
     requestAnimationFrame(() => {
+      if (activeView !== "places") {
+        placesMapLoading = false;
+        return;
+      }
       const initializedMap = createPlacesMap(
         mapElement,
         places,
@@ -610,6 +676,7 @@ function renderPlaces(places: Place[], routeCount: number, locale: AppLocale): v
       );
 
       placesMap = initializedMap;
+      placesMapLoading = false;
 
       const matchingPlaces = getMatchingPlaces(places, state.filters);
       initializedMap.displayPlaces(matchingPlaces);
@@ -623,37 +690,129 @@ function renderPlaces(places: Place[], routeCount: number, locale: AppLocale): v
         initializedMap.focusPlaces(matchingPlaces);
       }
 
-      if (initialPlace) {
+      if (initialPlace && state.selectedPlaceId === initialPlace.id) {
         selectPlace(initialPlace);
       }
 
       initializedMap.map.invalidateSize();
-
-      document
-        .querySelectorAll<HTMLElement>("[data-place-id]")
-        .forEach((card) => {
-          function activateCard(): void {
-            const placeId = Number(card.dataset.placeId);
-
-            const place = places.find(
-              (item) => item.id === placeId
-            );
-
-            if (place) {
-              selectPlace(place, card, true);
-            }
-          }
-
-          card.addEventListener("click", activateCard);
-          card.addEventListener("keydown", (event) => {
-            if (event.key === "Enter" || event.key === " ") {
-              event.preventDefault();
-              activateCard();
-            }
-          });
-        });
     });
   }
+
+  function initializePrefectureOverview(): void {
+    if (!prefecturesMapElement || prefectureMap || prefectureMapLoading) return;
+    prefectureMapLoading = true;
+    prefecturesMapElement.textContent = "";
+    prefecturesMapElement.classList.remove("prefectures-map--error");
+
+    requestAnimationFrame(() => {
+      void createPrefectureMap(
+        prefecturesMapElement,
+        visitedPrefectures,
+        visitedPlaceCounts,
+        (prefecture) => {
+          window.clearTimeout(searchTimer);
+          clearSelectionForFilters();
+          state = {
+            ...state,
+            filters: {
+              prefecture,
+              includeAdjacent: false,
+              query: "",
+              category: "",
+              visitStatus: "",
+            },
+          };
+          if (prefectureFilter) prefectureFilter.value = prefecture;
+          if (searchInput) searchInput.value = "";
+          if (categoryFilter) categoryFilter.value = "";
+          if (visitFilter) visitFilter.value = "";
+          setActiveView("places", false);
+          updateUrl();
+          applyFilters(true);
+        },
+        locale
+      ).then((initializedMap) => {
+        prefectureMap = initializedMap;
+        prefectureMapLoading = false;
+        initializedMap.refresh();
+      }).catch(() => {
+        prefectureMapLoading = false;
+        prefecturesMapElement.textContent = copy.mapLoadError;
+        prefecturesMapElement.classList.add("prefectures-map--error");
+      });
+    });
+  }
+
+  function setActiveView(
+    view: "places" | "prefectures",
+    syncUrl = true
+  ): void {
+    activeView = view;
+    const showPlaces = view === "places";
+
+    placesViewElements.forEach((element) => {
+      element.hidden = !showPlaces;
+    });
+
+    if (prefecturesView) {
+      prefecturesView.hidden = showPlaces;
+    }
+
+    viewButtons.forEach((button) => {
+      button.setAttribute(
+        "aria-pressed",
+        String(button.dataset.mapView === view)
+      );
+    });
+
+    renderState();
+
+    if (showPlaces) {
+      initializePlacesMap();
+      requestAnimationFrame(() => placesMap?.map.invalidateSize());
+    } else {
+      clearSelectionForFilters();
+      initializePrefectureOverview();
+      requestAnimationFrame(() => prefectureMap?.refresh());
+    }
+
+    if (syncUrl) updateUrl();
+  }
+
+  viewButtons.forEach((button) => {
+    button.addEventListener("click", () => {
+      const view = button.dataset.mapView;
+      if (view === "places" || view === "prefectures") {
+        setActiveView(view);
+      }
+    });
+  });
+
+  document
+    .querySelectorAll<HTMLElement>(".place-card[data-place-id]")
+    .forEach((card) => {
+      function activateCard(): void {
+        const placeId = Number(card.dataset.placeId);
+
+        const place = places.find(
+          (item) => item.id === placeId
+        );
+
+        if (place) {
+          selectPlace(place, card, true);
+        }
+      }
+
+      card.addEventListener("click", activateCard);
+      card.addEventListener("keydown", (event) => {
+        if (event.key === "Enter" || event.key === " ") {
+          event.preventDefault();
+          activateCard();
+        }
+      });
+    });
+
+  setActiveView(initialView, false);
 }
 
 function renderError(error: unknown, locale: AppLocale): void {

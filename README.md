@@ -67,6 +67,26 @@ SUPABASE_URL=... SUPABASE_SERVICE_ROLE_KEY=... \
 
 Existing translations are preserved unless `--overwrite` is supplied.
 
+## Visited prefectures
+
+The public `Places / Prefectures` switch opens an overview of all 47 prefectures.
+The overview is also linkable with `?view=prefectures` (and `lang=ru|ja|en`).
+A prefecture is highlighted when at least one publicly visible place in that
+prefecture has `visited = true` or a nonempty `visited_at`. Undated visits count;
+place filters do not affect the overview. No database migration is needed.
+Selecting a prefecture opens the places view and resets the other filters.
+
+Simplified boundaries are bundled in `public/prefectures.geojson`; their source
+and license are in `public/prefectures-LICENSE.txt`. This overview data is not used
+to assign precise coordinates or administrative boundaries to places.
+
+Regression checks (Node.js 22.18+ for native TypeScript support):
+
+```bash
+node --test scripts/test-prefecture-visits.mjs
+npm run build
+```
+
 ## Data visibility
 
 The frontend intentionally uses the public API under RLS.
