@@ -13,6 +13,7 @@ import { prefectureLabel, PREFECTURE_NAMES } from "./prefectures";
 import { CATEGORIES, categoryLabel, normalizeCategory, type AppLocale } from "./categories";
 import { visitedLabel, getVisitedPrefectureCounts } from "./visited";
 import { environmentLabel, formatMinutes, uiCopy } from "./i18n";
+import { pickRandomPlace } from "./random-place";
 
 const app = document.querySelector<HTMLDivElement>("#app");
 
@@ -185,6 +186,7 @@ function renderPlaces(places: Place[], routeCount: number, locale: AppLocale): v
                 <input id="adjacent-filter" type="checkbox">
                 <span>${copy.adjacent}</span>
               </label>
+              <button id="lucky-place" class="filters-lucky" type="button" title="${copy.luckyHint}">${copy.luckyPlace}</button>
               <button id="filters-reset" class="filters-reset" type="button">${copy.resetFilters}</button>
             </section>
             <section class="result-summary" data-view-content="places" aria-live="polite"${initialView === "prefectures" ? " hidden" : ""}>
@@ -257,6 +259,9 @@ function renderPlaces(places: Place[], routeCount: number, locale: AppLocale): v
 
   const filtersReset =
     document.querySelector<HTMLButtonElement>("#filters-reset");
+
+  const luckyPlace =
+    document.querySelector<HTMLButtonElement>("#lucky-place");
 
   const cardsGrid =
     document.querySelector<HTMLElement>(".grid");
@@ -392,6 +397,10 @@ function renderPlaces(places: Place[], routeCount: number, locale: AppLocale): v
         state.filters.query.trim() ||
         state.filters.includeAdjacent
       );
+    }
+
+    if (luckyPlace) {
+      luckyPlace.disabled = matchingPlaces.length === 0;
     }
 
     if (cardsGrid) {
@@ -610,6 +619,25 @@ function renderPlaces(places: Place[], routeCount: number, locale: AppLocale): v
     if (searchInput) searchInput.value = "";
     updateUrl();
     applyFilters(true);
+  });
+
+  luckyPlace?.addEventListener("click", () => {
+    const matchingPlaces = getMatchingPlaces(places, state.filters);
+    const visiblePlaces = getVisiblePlaces(
+      matchingPlaces,
+      state.viewportPlaceIds
+    );
+    const candidates = visiblePlaces.length > 0
+      ? visiblePlaces
+      : matchingPlaces;
+    const place = pickRandomPlace(
+      candidates,
+      state.selectedPlaceId
+    );
+
+    if (place) {
+      selectPlace(place, luckyPlace, true);
+    }
   });
 
   function commitSearch(): void {

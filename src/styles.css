@@ -557,7 +557,8 @@ h1 {
   opacity: .45;
 }
 
-.filters-reset {
+.filters-reset,
+.filters-lucky {
   min-height: 40px;
   padding: 10px 14px;
   border: 1px solid #262626;
@@ -568,13 +569,26 @@ h1 {
   cursor: pointer;
 }
 
-.filters-reset:hover:not(:disabled),
-.filters-reset:focus-visible {
+.filters-lucky {
   background: #191919;
   color: #f1eee6;
 }
 
-.filters-reset:disabled {
+.filters-reset:hover:not(:disabled),
+.filters-reset:focus-visible,
+.filters-lucky:hover:not(:disabled),
+.filters-lucky:focus-visible {
+  background: #191919;
+  color: #f1eee6;
+}
+
+.filters-lucky:hover:not(:disabled),
+.filters-lucky:focus-visible {
+  background: #b25735;
+}
+
+.filters-reset:disabled,
+.filters-lucky:disabled {
   cursor: default;
   opacity: .35;
 }

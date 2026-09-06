@@ -80,10 +80,16 @@ Simplified boundaries are bundled in `public/prefectures.geojson`; their source
 and license are in `public/prefectures-LICENSE.txt`. This overview data is not used
 to assign precise coordinates or administrative boundaries to places.
 
+The `I'm feeling lucky` button chooses a random place from the cards currently
+visible on the map and opens its details. It respects active filters and avoids
+immediately repeating the selected place when another candidate is available.
+If filters match places outside the current viewport but none are visible, it
+falls back to the full filtered result set.
+
 Regression checks (Node.js 22.18+ for native TypeScript support):
 
 ```bash
-node --test scripts/test-prefecture-visits.mjs
+node --test scripts/test-*.mjs
 npm run build
 ```
 
