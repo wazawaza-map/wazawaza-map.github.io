@@ -216,6 +216,26 @@ async function upsertTranslation(
   if (!response.ok) throw new Error(`Supabase ${response.status}: ${await response.text()}`);
 }
 
+async function requestPublicApiRebuild(session: AdminSession): Promise<void> {
+  const { url, key } = requireConfig();
+  try {
+    const response = await fetch(`${url}/functions/v1/request-api-rebuild`, {
+      method: "POST",
+      headers: {
+        apikey: key,
+        Authorization: `Bearer ${session.access_token}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ source: "wazadmin" }),
+    });
+    if (!response.ok) {
+      console.warn(`Public API rebuild request failed (${response.status}): ${await response.text()}`);
+    }
+  } catch (error) {
+    console.warn("Public API rebuild request failed:", error);
+  }
+}
+
 async function callAdminRpc(
   session: AdminSession,
   name: string,
@@ -634,6 +654,7 @@ function openPlaceEditor(
     try {
       const activeQuery = document.querySelector<HTMLInputElement>("#admin-search")?.value ?? "";
       await updateRows(session, `places?id=eq.${place.id}`, { status: nextStatus });
+      await requestPublicApiRebuild(session);
       close();
       await renderDashboard(session, activeQuery, returnView, returnMapState);
     } catch (statusError) {
@@ -653,6 +674,7 @@ function openPlaceEditor(
     try {
       const activeQuery = document.querySelector<HTMLInputElement>("#admin-search")?.value ?? "";
       await callAdminRpc(session, "delete_admin_place", { target_place_id: place.id });
+      if (place.status === "published") await requestPublicApiRebuild(session);
       close();
       await renderDashboard(session, activeQuery, returnView, returnMapState);
     } catch (deleteError) {
@@ -701,6 +723,7 @@ function openPlaceEditor(
           access_note: optional(data, `${locale}_access_note`),
         });
       }
+      if (place.status === "published") await requestPublicApiRebuild(session);
       close();
       await renderDashboard(session, activeQuery, returnView, returnMapState);
     } catch (saveError) {

@@ -26,7 +26,7 @@ Never put a Supabase secret/service-role key in this frontend project.
 
 ## Admin
 
-The read-only admin interface is available at `/wazadmin/`.
+The admin interface is available at `/wazadmin/`.
 
 To enable access:
 
@@ -38,6 +38,43 @@ To enable access:
 
 The browser uses only the publishable key. Admin access requires the
 `app_metadata.role = admin` JWT claim and matching RLS policies.
+
+## Public read-only API
+
+Each GitHub Pages deployment generates JSON snapshots containing published
+places only:
+
+- `/api/places.json` — all places with all available translations;
+- `/api/{locale}/places.json` — localized places (`ru`, `ja`, or `en`);
+- `/api/{locale}/prefectures/{slug}.json` — one prefecture;
+- `/api/{locale}/prefectures/{slug}-adjacent.json` — one prefecture and its
+  adjacent prefectures;
+- `/api/index.json` — endpoint documentation and all prefecture slugs.
+
+Generate the snapshots locally with configured public Supabase credentials:
+
+```bash
+npm run generate:api
+```
+
+The generated `public/api/` directory is intentionally git-ignored. GitHub
+Actions regenerates it on pushes, manual runs, a daily fallback schedule, and
+the `places_changed` repository dispatch event.
+
+To request a deployment after an admin edit, deploy the
+`request-api-rebuild` Supabase Edge Function and set its
+`GITHUB_DISPATCH_TOKEN` secret. The token must be a fine-grained GitHub token
+limited to this repository with `Contents: read and write`; never prefix it
+with `VITE_` or expose it to the browser.
+
+```bash
+npx supabase login
+npx supabase secrets set GITHUB_DISPATCH_TOKEN=... --project-ref gsksocekmcvrhmehocty
+npx supabase functions deploy request-api-rebuild --project-ref gsksocekmcvrhmehocty
+```
+
+The function accepts authenticated admins only. If it is temporarily
+unavailable, saving still succeeds and the daily workflow refreshes the API.
 
 ## Categories
 

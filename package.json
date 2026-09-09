@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",
+    "generate:api": "node --experimental-strip-types scripts/generate-public-api.mjs",
     "audit:coordinates": "python3 scripts/audit_coordinates.py",
     "preview": "vite preview"
   },

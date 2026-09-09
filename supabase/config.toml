@@ -1,0 +1,2 @@
+[functions.request-api-rebuild]
+verify_jwt = true

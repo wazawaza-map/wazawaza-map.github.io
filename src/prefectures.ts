@@ -1,6 +1,6 @@
 import type { AppLocale } from "./categories";
 
-const RUSSIAN_NAMES: Record<string, string> = {
+export const RUSSIAN_PREFECTURE_NAMES: Record<string, string> = {
   北海道: "Хоккайдо", 青森県: "Аомори", 岩手県: "Иватэ", 宮城県: "Мияги",
   秋田県: "Акита", 山形県: "Ямагата", 福島県: "Фукусима", 茨城県: "Ибараки",
   栃木県: "Тотиги", 群馬県: "Гумма", 埼玉県: "Сайтама", 千葉県: "Тиба",
@@ -16,7 +16,7 @@ const RUSSIAN_NAMES: Record<string, string> = {
   "埼玉県・群馬県・栃木県": "Сайтама, Гумма и Тотиги",
 };
 
-const ENGLISH_NAMES: Record<string, string> = {
+export const ENGLISH_PREFECTURE_NAMES: Record<string, string> = {
   北海道: "Hokkaido", 青森県: "Aomori", 岩手県: "Iwate", 宮城県: "Miyagi",
   秋田県: "Akita", 山形県: "Yamagata", 福島県: "Fukushima", 茨城県: "Ibaraki",
   栃木県: "Tochigi", 群馬県: "Gunma", 埼玉県: "Saitama", 千葉県: "Chiba",
@@ -32,11 +32,11 @@ const ENGLISH_NAMES: Record<string, string> = {
   "埼玉県・群馬県・栃木県": "Saitama, Gunma & Tochigi",
 };
 
-export const PREFECTURE_NAMES = Object.keys(ENGLISH_NAMES).filter(
+export const PREFECTURE_NAMES = Object.keys(ENGLISH_PREFECTURE_NAMES).filter(
   (name) => !name.includes("・")
 );
 
-const ADJACENT: Record<string, string[]> = {
+export const ADJACENT_PREFECTURES: Record<string, string[]> = {
   青森県: ["岩手県", "秋田県"], 岩手県: ["青森県", "宮城県", "秋田県"],
   宮城県: ["岩手県", "秋田県", "山形県", "福島県"], 秋田県: ["青森県", "岩手県", "宮城県", "山形県"],
   山形県: ["秋田県", "宮城県", "福島県", "新潟県"], 福島県: ["宮城県", "山形県", "新潟県", "群馬県", "栃木県", "茨城県"],
@@ -64,10 +64,10 @@ const ADJACENT: Record<string, string[]> = {
 
 export function prefectureLabel(prefecture: string, locale: AppLocale = "ru"): string {
   if (locale === "ja") return prefecture;
-  const translated = locale === "en" ? ENGLISH_NAMES[prefecture] : RUSSIAN_NAMES[prefecture];
+  const translated = locale === "en" ? ENGLISH_PREFECTURE_NAMES[prefecture] : RUSSIAN_PREFECTURE_NAMES[prefecture];
   return translated ? `${translated} · ${prefecture}` : prefecture;
 }
 
 export function adjacentPrefectures(prefecture: string): string[] {
-  return ADJACENT[prefecture] ?? [];
+  return ADJACENT_PREFECTURES[prefecture] ?? [];
 }
