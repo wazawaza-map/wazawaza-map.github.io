@@ -3,6 +3,7 @@ import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import "./leaflet-icons";
 import { CATEGORIES, categoryLabel, normalizeCategory } from "./categories";
+import { primaryNav, renderTripsDashboard } from "./admin-trips";
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL as string | undefined;
 const SUPABASE_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY as string | undefined;
@@ -315,6 +316,7 @@ async function renderDashboard(
           <div><p class="admin-kicker">WAZAWAZA</p><h1>Места</h1></div>
           <div class="admin-account"><span>${escapeHtml(session.user.email ?? "admin")}</span><button id="logout" type="button">Выйти</button></div>
         </header>
+        ${primaryNav("places")}
         <section class="admin-stats">
           <div><strong>${places.length}</strong><span>всего</span></div>
           <div><strong>${counts.published ?? 0}</strong><span>опубликовано</span></div>
@@ -474,6 +476,23 @@ async function renderDashboard(
       const button = (event.target as HTMLElement).closest<HTMLButtonElement>("[data-admin-view]");
       const view = button?.dataset.adminView;
       if (view === "list" || view === "map") switchView(view);
+    });
+    document.querySelector('[data-admin-section="trips"]')?.addEventListener("click", () => {
+      placesMap?.remove();
+      activeDashboardMap = undefined;
+      const { url, key } = requireConfig();
+      void renderTripsDashboard({
+        app: app!,
+        session,
+        supabaseUrl: url,
+        supabaseKey: key,
+        places,
+        onShowPlaces: () => void renderDashboard(session),
+        onLogout: () => {
+          saveSession(null);
+          renderLogin();
+        },
+      });
     });
     addPlaceButton?.addEventListener("click", () => setAddPlaceMode(!addPlaceMode));
     body?.addEventListener("click", (event) => {

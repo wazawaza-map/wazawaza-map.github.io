@@ -39,6 +39,14 @@ To enable access:
 The browser uses only the publishable key. Admin access requires the
 `app_metadata.role = admin` JWT claim and matching RLS policies.
 
+### Personal trip planner
+
+Run `scripts/trip_planner_setup.sql` once in the Supabase SQL Editor to enable
+the private `Поездки` section in `/wazadmin/`. Personal trips are owned by the
+signed-in admin and are separate from imported route templates. A trip can be
+split into dated days with ordered saved places or custom stops, overnight
+cities, lodging links, times, and notes.
+
 ## Public read-only API
 
 Each GitHub Pages deployment generates JSON snapshots containing published
