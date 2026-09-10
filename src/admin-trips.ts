@@ -103,6 +103,18 @@ function placeName(place: TripPlannerPlace): string {
     ?? `Место #${place.id}`;
 }
 
+function resolvePlaceId(value: string, places: Map<number, TripPlannerPlace>): number | null {
+  const explicitId = Number(value.match(/^#(\d+)/)?.[1] || 0);
+  if (explicitId && places.has(explicitId)) return explicitId;
+  const normalized = value.normalize("NFKC").trim().toLocaleLowerCase("ru");
+  if (!normalized) return null;
+  const matches = [...places.values()].filter((place) => {
+    const name = placeName(place).normalize("NFKC").toLocaleLowerCase("ru");
+    return name === normalized || name.includes(normalized);
+  });
+  return matches.length === 1 ? matches[0].id : null;
+}
+
 function tripDates(trip: Trip): string {
   if (!trip.start_date && !trip.end_date) return "Даты пока не указаны";
   if (!trip.end_date || trip.end_date === trip.start_date) return trip.start_date ?? trip.end_date!;
@@ -133,14 +145,27 @@ async function request<T>(
 }
 
 async function getTrips(options: TripPlannerOptions, id?: number): Promise<Trip[]> {
-  const select = [
+  const baseFields = [
     "id", "title", "start_date", "end_date", "status", "notes", "updated_at",
     "trip_days(id,day_number,date,overnight_city,lodging_name,lodging_url,notes,trip_stops(id,place_id,position,custom_name,planned_time,notes))",
-    "trip_bookings(id,kind,title,status,date,url,notes,position)",
-  ].join(",");
-  const params = new URLSearchParams({ select, order: "updated_at.desc,id.desc" });
-  if (id) params.set("id", `eq.${id}`);
-  const trips = await request<Trip[]>(options, `trips?${params}`);
+  ];
+  async function fetchTrips(includeBookings: boolean): Promise<Trip[]> {
+    const select = [...baseFields, ...(includeBookings
+      ? ["trip_bookings(id,kind,title,status,date,url,notes,position)"]
+      : [])].join(",");
+    const params = new URLSearchParams({ select, order: "updated_at.desc,id.desc" });
+    if (id) params.set("id", `eq.${id}`);
+    return request<Trip[]>(options, `trips?${params}`);
+  }
+
+  let trips: Trip[];
+  try {
+    trips = await fetchTrips(true);
+  } catch (error) {
+    if (!(error instanceof Error) || !error.message.includes("trip_bookings")) throw error;
+    trips = await fetchTrips(false);
+    trips.forEach((trip) => { trip.trip_bookings = []; });
+  }
   for (const trip of trips) {
     trip.trip_days.sort((a, b) => a.day_number - b.day_number);
     trip.trip_days.forEach((day) => day.trip_stops.sort((a, b) => a.position - b.position));
@@ -546,10 +571,10 @@ async function renderTripEditor(options: TripPlannerOptions, tripId: number): Pr
           const day = trip.trip_days.find((item) => item.id === dayId)!;
           const lookup = form.elements.namedItem(`place_lookup_${dayId}`) as HTMLInputElement;
           const custom = form.elements.namedItem(`custom_stop_${dayId}`) as HTMLInputElement;
-          const placeId = Number(lookup.value.match(/^#(\d+)/)?.[1] || 0) || null;
+          const placeId = resolvePlaceId(lookup.value, places);
           const customName = custom.value.trim() || null;
+          if (!placeId && lookup.value.trim()) throw new Error("Не удалось однозначно найти место. Выберите вариант из подсказки.");
           if (!placeId && !customName) throw new Error("Выберите место или введите свою остановку.");
-          if (placeId && !places.has(placeId)) throw new Error("Такого места нет в базе.");
           await insertRow<TripStop>(options, "trip_stops", {
             trip_day_id: dayId,
             place_id: placeId,
@@ -585,7 +610,10 @@ async function renderTripEditor(options: TripPlannerOptions, tripId: number): Pr
           await renderTripEditor(options, trip.id);
         }
       } catch (actionError) {
-        if (error) error.textContent = setupMessage(actionError);
+        if (error) {
+          error.textContent = setupMessage(actionError);
+          error.scrollIntoView({ behavior: "smooth", block: "center" });
+        }
       }
     });
   } catch (error) {
