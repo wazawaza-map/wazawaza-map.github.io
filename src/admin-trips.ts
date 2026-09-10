@@ -497,6 +497,24 @@ async function renderTripEditor(options: TripPlannerOptions, tripId: number): Pr
       }
     }
 
+    async function insertPendingStop(day: TripDay): Promise<boolean> {
+      const lookup = form.elements.namedItem(`place_lookup_${day.id}`) as HTMLInputElement;
+      const custom = form.elements.namedItem(`custom_stop_${day.id}`) as HTMLInputElement;
+      const lookupValue = lookup.value.trim();
+      const customName = custom.value.trim() || null;
+      if (!lookupValue && !customName) return false;
+
+      const placeId = resolvePlaceId(lookupValue, places);
+      if (!placeId && lookupValue) throw new Error("Не удалось однозначно найти место. Выберите вариант из подсказки.");
+      await insertRow<TripStop>(options, "trip_stops", {
+        trip_day_id: day.id,
+        place_id: placeId,
+        custom_name: placeId ? null : customName,
+        position: Math.max(0, ...day.trip_stops.map((stop) => stop.position)) + 1,
+      });
+      return true;
+    }
+
     form.addEventListener("submit", async (event) => {
       event.preventDefault();
       const submit = form.querySelector<HTMLButtonElement>('button[type="submit"]');
@@ -504,6 +522,7 @@ async function renderTripEditor(options: TripPlannerOptions, tripId: number): Pr
       if (error) error.textContent = "";
       try {
         await persistForm();
+        for (const day of trip.trip_days) await insertPendingStop(day);
         await renderTripEditor(options, trip.id);
       } catch (saveError) {
         if (error) error.textContent = setupMessage(saveError);
@@ -569,18 +588,7 @@ async function renderTripEditor(options: TripPlannerOptions, tripId: number): Pr
           await persistForm();
           const dayId = Number(add.dataset.addStop);
           const day = trip.trip_days.find((item) => item.id === dayId)!;
-          const lookup = form.elements.namedItem(`place_lookup_${dayId}`) as HTMLInputElement;
-          const custom = form.elements.namedItem(`custom_stop_${dayId}`) as HTMLInputElement;
-          const placeId = resolvePlaceId(lookup.value, places);
-          const customName = custom.value.trim() || null;
-          if (!placeId && lookup.value.trim()) throw new Error("Не удалось однозначно найти место. Выберите вариант из подсказки.");
-          if (!placeId && !customName) throw new Error("Выберите место или введите свою остановку.");
-          await insertRow<TripStop>(options, "trip_stops", {
-            trip_day_id: dayId,
-            place_id: placeId,
-            custom_name: placeId ? null : customName,
-            position: Math.max(0, ...day.trip_stops.map((stop) => stop.position)) + 1,
-          });
+          if (!await insertPendingStop(day)) throw new Error("Выберите место или введите свою остановку.");
           await renderTripEditor(options, trip.id);
         } else if (deleteStop) {
           await persistForm();
