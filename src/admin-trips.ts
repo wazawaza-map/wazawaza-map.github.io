@@ -85,6 +85,7 @@ const BOOKING_STATUS_LABELS: Record<TripBooking["status"], string> = {
   paid: "Куплено / оплачено",
 };
 let activeTripMap: L.Map | undefined;
+let savedTripMapView: { tripId: number; center: L.LatLngTuple; zoom: number } | undefined;
 
 function destroyTripMap(): void {
   activeTripMap?.remove();
@@ -392,7 +393,16 @@ async function renderTripEditor(options: TripPlannerOptions, tripId: number): Pr
           <label>Общий комментарий<textarea name="notes" rows="3">${escapeHtml(trip.notes || "")}</textarea></label>
         </section>
         <section class="admin-trip-map-section">
-          <div><p class="admin-kicker">МАРШРУТ НА КАРТЕ</p><p>Точки соединены в порядке дней и остановок.</p></div>
+          <div class="admin-trip-map-controls">
+            <p class="admin-kicker">МАРШРУТ НА КАРТЕ</p>
+            <p>Точки соединены в порядке дней и остановок. Нажмите на любое место, чтобы добавить его в маршрут.</p>
+            <label>Добавлять в день
+              <select id="trip-map-day">
+                ${trip.trip_days.map((day) => `<option value="${day.id}">День ${day.day_number}${day.date ? ` · ${escapeHtml(day.date)}` : " · без даты"}</option>`).join("")}
+              </select>
+            </label>
+            <p id="trip-map-message" class="admin-trip-map-message" aria-live="polite"></p>
+          </div>
           <div id="admin-trip-map" class="admin-trip-map"></div>
         </section>
         <section class="admin-bookings-section">
@@ -429,18 +439,61 @@ async function renderTripEditor(options: TripPlannerOptions, tripId: number): Pr
       return place ? [{ day, stop, place }] : [];
     }));
     const mapElement = document.querySelector<HTMLElement>("#admin-trip-map");
-    if (mapElement && routePoints.length) {
+    const mapDaySelect = document.querySelector<HTMLSelectElement>("#trip-map-day");
+    const mapMessage = document.querySelector<HTMLElement>("#trip-map-message");
+    let mapClickBusy = false;
+    if (mapElement) {
       activeTripMap = L.map(mapElement, { minZoom: 4 });
       L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
         maxZoom: 19,
         attribution: "&copy; OpenStreetMap contributors",
       }).addTo(activeTripMap);
+
+      const addPlaceFromMap = async (place: TripPlannerPlace): Promise<void> => {
+        if (mapClickBusy) return;
+        const dayId = Number(mapDaySelect?.value);
+        const day = trip.trip_days.find((item) => item.id === dayId);
+        if (!day) return;
+        if (day.trip_stops.some((stop) => stop.place_id === place.id)) {
+          if (mapMessage) mapMessage.textContent = `«${placeName(place)}» уже добавлено в день ${day.day_number}.`;
+          return;
+        }
+        mapClickBusy = true;
+        if (mapMessage) mapMessage.textContent = `Добавляю «${placeName(place)}»…`;
+        try {
+          await persistForm();
+          await insertRow<TripStop>(options, "trip_stops", {
+            trip_day_id: day.id,
+            place_id: place.id,
+            custom_name: null,
+            position: Math.max(0, ...day.trip_stops.map((stop) => stop.position)) + 1,
+          });
+          await renderTripEditor(options, trip.id);
+        } catch (mapError) {
+          mapClickBusy = false;
+          const message = setupMessage(mapError);
+          if (mapMessage) mapMessage.textContent = message;
+          if (error) error.textContent = message;
+        }
+      };
+
+      for (const place of options.places) {
+        const marker = L.circleMarker([place.latitude, place.longitude], {
+          radius: 4,
+          weight: 1,
+          color: "#f4f1e9",
+          fillColor: "#d14b36",
+          fillOpacity: 0.76,
+        }).bindTooltip(`<strong>${escapeHtml(placeName(place))}</strong><br>${escapeHtml(place.prefecture)}<br><small>Нажмите, чтобы добавить</small>`).addTo(activeTripMap);
+        marker.on("click", () => void addPlaceFromMap(place));
+      }
+
       const latLngs: L.LatLngExpression[] = [];
       for (const { day, stop, place } of routePoints) {
         const point: L.LatLngExpression = [place.latitude, place.longitude];
         latLngs.push(point);
         const label = `${day.day_number}.${stop.position}`;
-        L.marker(point, {
+        const marker = L.marker(point, {
           title: placeName(place),
           icon: L.divIcon({
             className: "admin-trip-marker-wrap",
@@ -448,13 +501,23 @@ async function renderTripEditor(options: TripPlannerOptions, tripId: number): Pr
             iconSize: [30, 30],
             iconAnchor: [15, 15],
           }),
-        }).bindTooltip(`<strong>${escapeHtml(label)} ${escapeHtml(placeName(place))}</strong><br>${escapeHtml(place.prefecture)}`).addTo(activeTripMap);
+        }).bindTooltip(`<strong>${escapeHtml(label)} ${escapeHtml(placeName(place))}</strong><br>${escapeHtml(place.prefecture)}<br><small>Нажмите, чтобы добавить в выбранный день</small>`).addTo(activeTripMap);
+        marker.on("click", () => void addPlaceFromMap(place));
       }
       if (latLngs.length > 1) L.polyline(latLngs, { color: "#d14b36", weight: 3, opacity: 0.72 }).addTo(activeTripMap);
-      activeTripMap.fitBounds(L.latLngBounds(latLngs), { padding: [36, 36], maxZoom: 13 });
+      if (savedTripMapView?.tripId === trip.id) {
+        activeTripMap.setView(savedTripMapView.center, savedTripMapView.zoom);
+      } else if (latLngs.length) {
+        activeTripMap.fitBounds(L.latLngBounds(latLngs), { padding: [36, 36], maxZoom: 13 });
+      } else {
+        activeTripMap.setView([36.2, 138.2], 5);
+      }
+      activeTripMap.on("moveend", () => {
+        if (!activeTripMap) return;
+        const center = activeTripMap.getCenter();
+        savedTripMapView = { tripId: trip.id, center: [center.lat, center.lng], zoom: activeTripMap.getZoom() };
+      });
       requestAnimationFrame(() => activeTripMap?.invalidateSize());
-    } else if (mapElement) {
-      mapElement.innerHTML = `<p class="admin-trip-map__empty">Добавьте места из базы — здесь появится маршрут.</p>`;
     }
 
     async function persistForm(): Promise<void> {
