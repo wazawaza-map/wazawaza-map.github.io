@@ -45,7 +45,9 @@ Run `scripts/trip_planner_setup.sql` once in the Supabase SQL Editor to enable
 the private `Поездки` section in `/wazadmin/`. Personal trips are owned by the
 signed-in admin and are separate from imported route templates. A trip can be
 split into dated days with ordered saved places or custom stops, overnight
-cities, lodging links, times, and notes.
+cities, lodging links, times, and notes. The booking checklist tracks hotels,
+transport and admission tickets as planned, booked, or paid; item dates are
+optional.
 
 ## Public read-only API
 

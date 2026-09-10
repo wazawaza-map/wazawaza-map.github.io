@@ -34,6 +34,17 @@ type TripDay = {
   trip_stops: TripStop[];
 };
 
+type TripBooking = {
+  id: number;
+  kind: "lodging" | "transport" | "admission" | "other";
+  title: string;
+  status: "planned" | "booked" | "paid";
+  date: string | null;
+  url: string | null;
+  notes: string | null;
+  position: number;
+};
+
 type Trip = {
   id: number;
   title: string;
@@ -43,6 +54,7 @@ type Trip = {
   notes: string | null;
   updated_at: string;
   trip_days: TripDay[];
+  trip_bookings: TripBooking[];
 };
 
 type TripPlannerOptions = {
@@ -60,6 +72,17 @@ const STATUS_LABELS: Record<Trip["status"], string> = {
   planning: "Планирую",
   booked: "Забронировано",
   completed: "Завершена",
+};
+const BOOKING_KIND_LABELS: Record<TripBooking["kind"], string> = {
+  lodging: "Отель / жильё",
+  transport: "Транспорт",
+  admission: "Входной билет",
+  other: "Другое",
+};
+const BOOKING_STATUS_LABELS: Record<TripBooking["status"], string> = {
+  planned: "Нужно оформить",
+  booked: "Забронировано",
+  paid: "Куплено / оплачено",
 };
 let activeTripMap: L.Map | undefined;
 
@@ -113,6 +136,7 @@ async function getTrips(options: TripPlannerOptions, id?: number): Promise<Trip[
   const select = [
     "id", "title", "start_date", "end_date", "status", "notes", "updated_at",
     "trip_days(id,day_number,date,overnight_city,lodging_name,lodging_url,notes,trip_stops(id,place_id,position,custom_name,planned_time,notes))",
+    "trip_bookings(id,kind,title,status,date,url,notes,position)",
   ].join(",");
   const params = new URLSearchParams({ select, order: "updated_at.desc,id.desc" });
   if (id) params.set("id", `eq.${id}`);
@@ -120,6 +144,7 @@ async function getTrips(options: TripPlannerOptions, id?: number): Promise<Trip[
   for (const trip of trips) {
     trip.trip_days.sort((a, b) => a.day_number - b.day_number);
     trip.trip_days.forEach((day) => day.trip_stops.sort((a, b) => a.position - b.position));
+    trip.trip_bookings.sort((a, b) => a.position - b.position);
   }
   return trips;
 }
@@ -207,7 +232,7 @@ export async function renderTripsDashboard(options: TripPlannerOptions): Promise
         <div>
           <span class="admin-status admin-status--${trip.status}">${escapeHtml(STATUS_LABELS[trip.status])}</span>
           <h2>${escapeHtml(trip.title)}</h2>
-          <p>${escapeHtml(tripDates(trip))} · ${trip.trip_days.length} дн.</p>
+          <p>${escapeHtml(tripDates(trip))} · ${trip.trip_days.length} дн. · ${trip.trip_bookings.filter((item) => item.status !== "planned").length}/${trip.trip_bookings.length} броней готово</p>
           ${trip.notes ? `<p class="admin-trip-card__note">${escapeHtml(trip.notes)}</p>` : ""}
         </div>
         <button type="button" data-edit-trip="${trip.id}">Открыть →</button>
@@ -293,6 +318,27 @@ function dayEditor(day: TripDay, places: Map<number, TripPlannerPlace>): string 
   </section>`;
 }
 
+function selectOptions<T extends string>(labels: Record<T, string>, selected: T): string {
+  return Object.entries(labels).map(([value, label]) =>
+    `<option value="${value}"${value === selected ? " selected" : ""}>${escapeHtml(String(label))}</option>`
+  ).join("");
+}
+
+function bookingEditor(booking: TripBooking): string {
+  return `<article class="admin-booking" data-booking-id="${booking.id}">
+    <div class="admin-booking__status admin-booking__status--${booking.status}" title="${escapeHtml(BOOKING_STATUS_LABELS[booking.status])}"></div>
+    <div class="admin-booking__fields">
+      <label>Тип<select name="booking_${booking.id}_kind">${selectOptions(BOOKING_KIND_LABELS, booking.kind)}</select></label>
+      <label class="admin-booking__title">Что бронируем / покупаем<input name="booking_${booking.id}_title" required value="${escapeHtml(booking.title)}"></label>
+      <label>Статус<select name="booking_${booking.id}_status">${selectOptions(BOOKING_STATUS_LABELS, booking.status)}</select></label>
+      <label>Дата (необязательно)<input name="booking_${booking.id}_date" type="date" value="${escapeHtml(booking.date || "")}"></label>
+      <label>Ссылка<input name="booking_${booking.id}_url" type="url" value="${escapeHtml(booking.url || "")}"></label>
+      <label class="admin-booking__note">Заметка / номер брони<input name="booking_${booking.id}_notes" value="${escapeHtml(booking.notes || "")}"></label>
+    </div>
+    <button class="danger" type="button" data-delete-booking="${booking.id}" aria-label="Удалить">×</button>
+  </article>`;
+}
+
 async function renderTripEditor(options: TripPlannerOptions, tripId: number): Promise<void> {
   destroyTripMap();
   options.app.innerHTML = `<main class="admin-loading">Открываю поездку…</main>`;
@@ -323,6 +369,17 @@ async function renderTripEditor(options: TripPlannerOptions, tripId: number): Pr
         <section class="admin-trip-map-section">
           <div><p class="admin-kicker">МАРШРУТ НА КАРТЕ</p><p>Точки соединены в порядке дней и остановок.</p></div>
           <div id="admin-trip-map" class="admin-trip-map"></div>
+        </section>
+        <section class="admin-bookings-section">
+          <header><div><p class="admin-kicker">БРОНИ И БИЛЕТЫ</p><h2>Что уже готово</h2></div><span>${trip.trip_bookings.filter((item) => item.status !== "planned").length} из ${trip.trip_bookings.length}</span></header>
+          <div class="admin-bookings-list">
+            ${trip.trip_bookings.length ? trip.trip_bookings.map(bookingEditor).join("") : `<p class="admin-trip-day__empty">Пока ничего нет — добавьте отель или билет ниже.</p>`}
+          </div>
+          <div class="admin-add-booking">
+            <label>Тип<select name="new_booking_kind">${selectOptions(BOOKING_KIND_LABELS, "lodging")}</select></label>
+            <label>Название<input name="new_booking_title" placeholder="Например, отель в Мацуяме"></label>
+            <button type="button" data-add-booking>＋ Добавить</button>
+          </div>
         </section>
         <datalist id="trip-place-options">${placeOptions}</datalist>
         <div class="admin-trip-days">${trip.trip_days.map((day) => dayEditor(day, places)).join("")}</div>
@@ -401,6 +458,18 @@ async function renderTripEditor(options: TripPlannerOptions, tripId: number): Pr
           });
         }
       }
+      for (const booking of trip.trip_bookings) {
+        const bookingTitle = String(data.get(`booking_${booking.id}_title`) || "").trim();
+        if (!bookingTitle) throw new Error("Укажите название брони или билета.");
+        await updateRow(options, "trip_bookings", booking.id, {
+          kind: data.get(`booking_${booking.id}_kind`),
+          title: bookingTitle,
+          status: data.get(`booking_${booking.id}_status`),
+          date: String(data.get(`booking_${booking.id}_date`) || "") || null,
+          url: String(data.get(`booking_${booking.id}_url`) || "").trim() || null,
+          notes: String(data.get(`booking_${booking.id}_notes`) || "").trim() || null,
+        });
+      }
     }
 
     form.addEventListener("submit", async (event) => {
@@ -451,8 +520,27 @@ async function renderTripEditor(options: TripPlannerOptions, tripId: number): Pr
       const deleteStop = target.closest<HTMLButtonElement>("[data-delete-stop]");
       const deleteDay = target.closest<HTMLButtonElement>("[data-delete-day]");
       const move = target.closest<HTMLButtonElement>("[data-move-stop]");
+      const addBooking = target.closest<HTMLButtonElement>("[data-add-booking]");
+      const deleteBooking = target.closest<HTMLButtonElement>("[data-delete-booking]");
       try {
-        if (add) {
+        if (addBooking) {
+          await persistForm();
+          const data = new FormData(form);
+          const title = String(data.get("new_booking_title") || "").trim();
+          if (!title) throw new Error("Введите, что нужно забронировать или купить.");
+          await insertRow<TripBooking>(options, "trip_bookings", {
+            trip_id: trip.id,
+            kind: data.get("new_booking_kind"),
+            title,
+            status: "planned",
+            position: Math.max(0, ...trip.trip_bookings.map((item) => item.position)) + 1,
+          });
+          await renderTripEditor(options, trip.id);
+        } else if (deleteBooking) {
+          await persistForm();
+          await deleteRow(options, "trip_bookings", Number(deleteBooking.dataset.deleteBooking));
+          await renderTripEditor(options, trip.id);
+        } else if (add) {
           await persistForm();
           const dayId = Number(add.dataset.addStop);
           const day = trip.trip_days.find((item) => item.id === dayId)!;
