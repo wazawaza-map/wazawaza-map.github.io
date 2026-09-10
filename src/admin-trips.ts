@@ -86,6 +86,7 @@ const BOOKING_STATUS_LABELS: Record<TripBooking["status"], string> = {
 };
 let activeTripMap: L.Map | undefined;
 let savedTripMapView: { tripId: number; center: L.LatLngTuple; zoom: number } | undefined;
+let savedTripMapDay: { tripId: number; dayId: number } | undefined;
 
 function destroyTripMap(): void {
   activeTripMap?.remove();
@@ -398,7 +399,7 @@ async function renderTripEditor(options: TripPlannerOptions, tripId: number): Pr
             <p>Точки соединены в порядке дней и остановок. Нажмите на любое место, чтобы добавить его в маршрут.</p>
             <label>Добавлять в день
               <select id="trip-map-day">
-                ${trip.trip_days.map((day) => `<option value="${day.id}">День ${day.day_number}${day.date ? ` · ${escapeHtml(day.date)}` : " · без даты"}</option>`).join("")}
+                ${trip.trip_days.map((day) => `<option value="${day.id}"${savedTripMapDay?.tripId === trip.id && savedTripMapDay.dayId === day.id ? " selected" : ""}>День ${day.day_number}${day.date ? ` · ${escapeHtml(day.date)}` : " · без даты"}</option>`).join("")}
               </select>
             </label>
             <p id="trip-map-message" class="admin-trip-map-message" aria-live="polite"></p>
@@ -442,6 +443,10 @@ async function renderTripEditor(options: TripPlannerOptions, tripId: number): Pr
     const mapDaySelect = document.querySelector<HTMLSelectElement>("#trip-map-day");
     const mapMessage = document.querySelector<HTMLElement>("#trip-map-message");
     let mapClickBusy = false;
+    mapDaySelect?.addEventListener("change", () => {
+      savedTripMapDay = { tripId: trip.id, dayId: Number(mapDaySelect.value) };
+      if (mapMessage) mapMessage.textContent = "";
+    });
     if (mapElement) {
       activeTripMap = L.map(mapElement, { minZoom: 4 });
       L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
@@ -454,6 +459,7 @@ async function renderTripEditor(options: TripPlannerOptions, tripId: number): Pr
         const dayId = Number(mapDaySelect?.value);
         const day = trip.trip_days.find((item) => item.id === dayId);
         if (!day) return;
+        savedTripMapDay = { tripId: trip.id, dayId: day.id };
         if (day.trip_stops.some((stop) => stop.place_id === place.id)) {
           if (mapMessage) mapMessage.textContent = `«${placeName(place)}» уже добавлено в день ${day.day_number}.`;
           return;
