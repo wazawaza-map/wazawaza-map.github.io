@@ -123,8 +123,12 @@ let savedTripMapView: { tripId: number; center: L.LatLngTuple; zoom: number } | 
 let savedTripMapDay: { tripId: number; dayId: number } | undefined;
 
 function destroyTripMap(): void {
-  activeTripMap?.remove();
+  const map = activeTripMap;
   activeTripMap = undefined;
+  if (!map) return;
+  map.stop();
+  map.off();
+  map.remove();
 }
 
 function escapeHtml(value: string): string {
@@ -583,7 +587,8 @@ async function renderTripEditor(options: TripPlannerOptions, tripId: number): Pr
       if (mapMessage) mapMessage.textContent = "";
     });
     if (mapElement) {
-      activeTripMap = L.map(mapElement, { minZoom: 4 });
+      const map = L.map(mapElement, { minZoom: 4 });
+      activeTripMap = map;
       L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
         maxZoom: 19,
         attribution: "&copy; OpenStreetMap contributors",
@@ -702,7 +707,9 @@ async function renderTripEditor(options: TripPlannerOptions, tripId: number): Pr
         const center = activeTripMap.getCenter();
         savedTripMapView = { tripId: trip.id, center: [center.lat, center.lng], zoom: activeTripMap.getZoom() };
       });
-      requestAnimationFrame(() => activeTripMap?.invalidateSize());
+      requestAnimationFrame(() => {
+        if (activeTripMap === map) map.invalidateSize();
+      });
     }
 
     async function persistForm(): Promise<void> {
