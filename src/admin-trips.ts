@@ -27,6 +27,7 @@ type TripDay = {
   id: number;
   day_number: number;
   date: string | null;
+  destination_id: number | null;
   overnight_city: string | null;
   lodging_name: string | null;
   lodging_url: string | null;
@@ -88,6 +89,7 @@ type Trip = {
   updated_at: string;
   trip_days: TripDay[];
   trip_bookings: TripBooking[];
+  supports_day_destinations: boolean;
 };
 
 type TripPlannerOptions = {
@@ -129,6 +131,7 @@ const TRANSPORT_MODE_LABELS: Record<TripLeg["mode"], string> = {
 let activeTripMap: L.Map | undefined;
 let savedTripMapView: { tripId: number; center: L.LatLngTuple; zoom: number } | undefined;
 let savedTripMapDay: { tripId: number; dayId: number } | undefined;
+let savedTripMapLayer: { tripId: number; mode: "overview" | "day" | "all" } | undefined;
 
 function destroyTripMap(): void {
   const map = activeTripMap;
@@ -227,11 +230,13 @@ async function request<T>(
 }
 
 async function getTrips(options: TripPlannerOptions, id?: number): Promise<Trip[]> {
-  const baseFields = [
-    "id", "title", "start_date", "end_date", "status", "notes", "updated_at",
-    "trip_days(id,day_number,date,overnight_city,lodging_name,lodging_url,notes,trip_stops(id,place_id,position,custom_name,planned_time,notes))",
-  ];
-  async function fetchTrips(includeBookings: boolean): Promise<Trip[]> {
+  async function fetchTrips(includeBookings: boolean, includeDayDestinations: boolean): Promise<Trip[]> {
+    const dayFields = [
+      "id", "day_number", "date", ...(includeDayDestinations ? ["destination_id"] : []),
+      "overnight_city", "lodging_name", "lodging_url", "notes",
+      "trip_stops(id,place_id,position,custom_name,planned_time,notes)",
+    ].join(",");
+    const baseFields = ["id", "title", "start_date", "end_date", "status", "notes", "updated_at", `trip_days(${dayFields})`];
     const select = [...baseFields, ...(includeBookings
       ? ["trip_bookings(id,kind,title,status,date,url,notes,position)"]
       : [])].join(",");
@@ -240,17 +245,32 @@ async function getTrips(options: TripPlannerOptions, id?: number): Promise<Trip[
     return request<Trip[]>(options, `trips?${params}`);
   }
 
-  let trips: Trip[];
-  try {
-    trips = await fetchTrips(true);
-  } catch (error) {
-    if (!(error instanceof Error) || !error.message.includes("trip_bookings")) throw error;
-    trips = await fetchTrips(false);
-    trips.forEach((trip) => { trip.trip_bookings = []; });
+  let trips: Trip[] | undefined;
+  let includeBookings = true;
+  let includeDayDestinations = true;
+  for (let attempt = 0; attempt < 3 && !trips; attempt += 1) {
+    try {
+      trips = await fetchTrips(includeBookings, includeDayDestinations);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      if (includeBookings && message.includes("trip_bookings")) {
+        includeBookings = false;
+      } else if (includeDayDestinations && message.includes("destination_id")) {
+        includeDayDestinations = false;
+      } else {
+        throw error;
+      }
+    }
   }
+  if (!trips) throw new Error("Не удалось загрузить поездки.");
   for (const trip of trips) {
+    if (!includeBookings) trip.trip_bookings = [];
+    trip.supports_day_destinations = includeDayDestinations;
     trip.trip_days.sort((a, b) => a.day_number - b.day_number);
-    trip.trip_days.forEach((day) => day.trip_stops.sort((a, b) => a.position - b.position));
+    trip.trip_days.forEach((day) => {
+      if (!includeDayDestinations) day.destination_id = null;
+      day.trip_stops.sort((a, b) => a.position - b.position);
+    });
     trip.trip_bookings.sort((a, b) => a.position - b.position);
   }
   return trips;
@@ -411,7 +431,7 @@ function stopTitle(stop: TripStop, places: Map<number, TripPlannerPlace>): strin
   return stop.custom_name || "Остановка";
 }
 
-function dayEditor(day: TripDay, places: Map<number, TripPlannerPlace>): string {
+function dayEditor(day: TripDay, places: Map<number, TripPlannerPlace>, destinations: TripDestination[], supportsDayDestinations: boolean): string {
   return `<section class="admin-trip-day" data-day-id="${day.id}">
     <header class="admin-trip-day__header">
       <div><p class="admin-kicker">ДЕНЬ ${day.day_number}</p><h2>${escapeHtml(day.date || "Без даты")}</h2></div>
@@ -419,7 +439,10 @@ function dayEditor(day: TripDay, places: Map<number, TripPlannerPlace>): string 
     </header>
     <div class="admin-form-grid">
       <label>Дата<input name="day_${day.id}_date" type="date" value="${escapeHtml(day.date || "")}"></label>
-      <label>Город ночёвки<input name="day_${day.id}_overnight_city" value="${escapeHtml(day.overnight_city || "")}" placeholder="Например, 松山市"></label>
+      <label>Город маршрута<select name="day_${day.id}_destination_id"${supportsDayDestinations ? "" : " disabled"}>
+        <option value="">Не выбран</option>
+        ${destinations.map((destination) => `<option value="${destination.id}"${destination.id === day.destination_id ? " selected" : ""}>${escapeHtml(destination.name)}</option>`).join("")}
+      </select></label>
       <label>Отель / жильё<input name="day_${day.id}_lodging_name" value="${escapeHtml(day.lodging_name || "")}"></label>
       <label>Ссылка на жильё<input name="day_${day.id}_lodging_url" type="url" value="${escapeHtml(day.lodging_url || "")}"></label>
     </div>
@@ -554,6 +577,13 @@ async function renderTripEditor(options: TripPlannerOptions, tripId: number): Pr
           <div class="admin-trip-map-controls">
             <p class="admin-kicker">МАРШРУТ НА КАРТЕ</p>
             <p>Точки соединены в порядке дней и остановок. Нажмите на любое место, чтобы добавить его в маршрут.</p>
+            <label>Показывать
+              <select id="trip-map-layer">
+                <option value="overview"${savedTripMapLayer?.tripId === trip.id && savedTripMapLayer.mode === "overview" ? " selected" : ""}>Обзор городов</option>
+                <option value="day"${savedTripMapLayer?.tripId === trip.id && savedTripMapLayer.mode === "day" ? " selected" : ""}>Выбранный день</option>
+                <option value="all"${savedTripMapLayer?.tripId !== trip.id || savedTripMapLayer.mode === "all" ? " selected" : ""}>Вся поездка</option>
+              </select>
+            </label>
             <label>Добавлять в день
               <select id="trip-map-day">
                 ${trip.trip_days.map((day) => `<option value="${day.id}"${savedTripMapDay?.tripId === trip.id && savedTripMapDay.dayId === day.id ? " selected" : ""}>День ${day.day_number}${day.date ? ` · ${escapeHtml(day.date)}` : " · без даты"}</option>`).join("")}
@@ -575,7 +605,8 @@ async function renderTripEditor(options: TripPlannerOptions, tripId: number): Pr
           </div>
         </section>
         <datalist id="trip-place-options">${placeOptions}</datalist>
-        <div class="admin-trip-days">${trip.trip_days.map((day) => dayEditor(day, places)).join("")}</div>
+        ${trip.supports_day_destinations ? "" : `<p class="admin-trip-route-setup">Повторно выполните актуальный SQL, чтобы привязать дни к городам.</p>`}
+        <div class="admin-trip-days">${trip.trip_days.map((day) => dayEditor(day, places, tripRoute?.destinations ?? [], trip.supports_day_destinations)).join("")}</div>
         <div class="admin-trip-editor__footer">
           <button type="button" class="danger" data-delete-trip>Удалить поездку</button>
           <div><button type="button" class="secondary" data-add-day>＋ Добавить день</button><button type="submit">Сохранить всё</button></div>
@@ -602,11 +633,18 @@ async function renderTripEditor(options: TripPlannerOptions, tripId: number): Pr
     }));
     const mapElement = document.querySelector<HTMLElement>("#admin-trip-map");
     const mapDaySelect = document.querySelector<HTMLSelectElement>("#trip-map-day");
+    const mapLayerSelect = document.querySelector<HTMLSelectElement>("#trip-map-layer");
     const mapMessage = document.querySelector<HTMLElement>("#trip-map-message");
     let mapClickBusy = false;
+    let updateMapLayers: ((fitBounds: boolean) => void) | undefined;
     mapDaySelect?.addEventListener("change", () => {
       savedTripMapDay = { tripId: trip.id, dayId: Number(mapDaySelect.value) };
       if (mapMessage) mapMessage.textContent = "";
+      updateMapLayers?.(true);
+    });
+    mapLayerSelect?.addEventListener("change", () => {
+      savedTripMapLayer = { tripId: trip.id, mode: mapLayerSelect.value as "overview" | "day" | "all" };
+      updateMapLayers?.(true);
     });
     if (mapElement) {
       const map = L.map(mapElement, { minZoom: 4 });
@@ -615,6 +653,10 @@ async function renderTripEditor(options: TripPlannerOptions, tripId: number): Pr
         maxZoom: 19,
         attribution: "&copy; OpenStreetMap contributors",
       }).addTo(activeTripMap);
+      const cityLayer = L.layerGroup();
+      const cityMarkers = new Map<number, L.Marker>();
+      const dayLayers = new Map<number, L.LayerGroup>();
+      const dayLatLngs = new Map<number, L.LatLngExpression[]>();
 
       const addPlaceFromMap = async (place: TripPlannerPlace): Promise<void> => {
         if (mapClickBusy) return;
@@ -674,14 +716,15 @@ async function renderTripEditor(options: TripPlannerOptions, tripId: number): Pr
             iconSize: [38, 38],
             iconAnchor: [19, 19],
           }),
-        }).bindTooltip(`<strong>${escapeHtml(destination.name)}</strong><br><small>Перетащите, чтобы уточнить точку</small>`).addTo(activeTripMap);
+        }).bindTooltip(`<strong>${escapeHtml(destination.name)}</strong><br><small>Перетащите, чтобы уточнить точку</small>`).addTo(cityLayer);
+        cityMarkers.set(destination.id, marker);
         marker.on("dragend", () => {
           const point = marker.getLatLng();
           void saveDestinationCoordinates(destination, point.lat, point.lng);
         });
       }
       if (cityLatLngs.length > 1) {
-        L.polyline(cityLatLngs, { color: "#245e82", weight: 4, opacity: 0.76, dashArray: "8 7" }).addTo(activeTripMap);
+        L.polyline(cityLatLngs, { color: "#245e82", weight: 4, opacity: 0.76, dashArray: "8 7" }).addTo(cityLayer);
       }
 
       activeTripMap.on("click", (event) => {
@@ -702,6 +745,11 @@ async function renderTripEditor(options: TripPlannerOptions, tripId: number): Pr
       for (const { day, stop, place } of routePoints) {
         const point: L.LatLngExpression = [place.latitude, place.longitude];
         latLngs.push(point);
+        const dayLayer = dayLayers.get(day.id) ?? L.layerGroup();
+        const points = dayLatLngs.get(day.id) ?? [];
+        points.push(point);
+        dayLayers.set(day.id, dayLayer);
+        dayLatLngs.set(day.id, points);
         const label = `${day.day_number}.${stop.position}`;
         const marker = L.marker(point, {
           title: placeName(place),
@@ -711,16 +759,50 @@ async function renderTripEditor(options: TripPlannerOptions, tripId: number): Pr
             iconSize: [30, 30],
             iconAnchor: [15, 15],
           }),
-        }).bindTooltip(`<strong>${escapeHtml(label)} ${escapeHtml(placeName(place))}</strong><br>${escapeHtml(place.prefecture)}<br><small>Нажмите, чтобы добавить в выбранный день</small>`).addTo(activeTripMap);
+        }).bindTooltip(`<strong>${escapeHtml(label)} ${escapeHtml(placeName(place))}</strong><br>${escapeHtml(place.prefecture)}<br><small>Нажмите, чтобы добавить в выбранный день</small>`).addTo(dayLayer);
         marker.on("click", () => void addPlaceFromMap(place));
       }
-      if (latLngs.length > 1) L.polyline(latLngs, { color: "#d14b36", weight: 3, opacity: 0.72 }).addTo(activeTripMap);
+      for (const [dayId, points] of dayLatLngs) {
+        if (points.length > 1) L.polyline(points, { color: "#d14b36", weight: 3, opacity: 0.72 }).addTo(dayLayers.get(dayId)!);
+      }
+
+      const visiblePoints = (): L.LatLngExpression[] => {
+        const mode = (mapLayerSelect?.value || "all") as "overview" | "day" | "all";
+        if (mode === "overview") return cityLatLngs;
+        if (mode === "day") {
+          const dayId = Number(mapDaySelect?.value);
+          const destinationId = trip.trip_days.find((day) => day.id === dayId)?.destination_id;
+          const destination = destinations.find((item) => item.id === destinationId);
+          const cityPoint: L.LatLngExpression[] = destination?.latitude != null && destination.longitude != null
+            ? [[destination.latitude, destination.longitude]]
+            : [];
+          return [...cityPoint, ...(dayLatLngs.get(dayId) ?? [])];
+        }
+        return [...cityLatLngs, ...latLngs];
+      };
+      updateMapLayers = (fitBounds) => {
+        cityLayer.remove();
+        cityMarkers.forEach((marker) => marker.remove());
+        dayLayers.forEach((layer) => layer.remove());
+        const mode = (mapLayerSelect?.value || "all") as "overview" | "day" | "all";
+        if (mode === "overview" || mode === "all") cityLayer.addTo(map);
+        if (mode === "day") {
+          const dayId = Number(mapDaySelect?.value);
+          const destinationId = trip.trip_days.find((day) => day.id === dayId)?.destination_id;
+          if (destinationId) cityMarkers.get(destinationId)?.addTo(map);
+          dayLayers.get(dayId)?.addTo(map);
+        }
+        if (mode === "all") dayLayers.forEach((layer) => layer.addTo(map));
+        if (fitBounds) {
+          const points = visiblePoints();
+          if (points.length) map.fitBounds(L.latLngBounds(points), { padding: [36, 36], maxZoom: mode === "overview" ? 10 : 13 });
+        }
+      };
+      updateMapLayers(false);
       if (savedTripMapView?.tripId === trip.id) {
         activeTripMap.setView(savedTripMapView.center, savedTripMapView.zoom);
-      } else if (cityLatLngs.length) {
-        activeTripMap.fitBounds(L.latLngBounds(cityLatLngs), { padding: [36, 36], maxZoom: 10 });
-      } else if (latLngs.length) {
-        activeTripMap.fitBounds(L.latLngBounds(latLngs), { padding: [36, 36], maxZoom: 13 });
+      } else if (visiblePoints().length) {
+        activeTripMap.fitBounds(L.latLngBounds(visiblePoints()), { padding: [36, 36], maxZoom: mapLayerSelect?.value === "overview" ? 10 : 13 });
       } else {
         activeTripMap.setView([36.2, 138.2], 5);
       }
@@ -746,13 +828,18 @@ async function renderTripEditor(options: TripPlannerOptions, tripId: number): Pr
         notes: String(data.get("notes") || "").trim() || null,
       });
       for (const day of trip.trip_days) {
-        await updateRow(options, "trip_days", day.id, {
+        const dayValues: Record<string, unknown> = {
           date: String(data.get(`day_${day.id}_date`) || "") || null,
-          overnight_city: String(data.get(`day_${day.id}_overnight_city`) || "").trim() || null,
           lodging_name: String(data.get(`day_${day.id}_lodging_name`) || "").trim() || null,
           lodging_url: String(data.get(`day_${day.id}_lodging_url`) || "").trim() || null,
           notes: String(data.get(`day_${day.id}_notes`) || "").trim() || null,
-        });
+        };
+        if (trip.supports_day_destinations) {
+          const destinationId = Number(data.get(`day_${day.id}_destination_id`)) || null;
+          dayValues.destination_id = destinationId;
+          dayValues.overnight_city = destinations.find((destination) => destination.id === destinationId)?.name ?? null;
+        }
+        await updateRow(options, "trip_days", day.id, dayValues);
         for (const stop of day.trip_stops) {
           await updateRow(options, "trip_stops", stop.id, {
             planned_time: String(data.get(`stop_${stop.id}_planned_time`) || "") || null,

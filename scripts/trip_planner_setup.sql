@@ -80,6 +80,15 @@ create table if not exists public.trip_legs (
 
 alter table public.trip_legs add column if not exists departure_time time;
 alter table public.trip_legs add column if not exists arrival_time time;
+alter table public.trip_days add column if not exists destination_id bigint references public.trip_destinations(id) on delete set null;
+
+update public.trip_days as day
+set destination_id = destination.id
+from public.trip_destinations as destination
+where day.destination_id is null
+  and day.trip_id = destination.trip_id
+  and nullif(trim(day.overnight_city), '') is not null
+  and lower(trim(day.overnight_city)) = lower(trim(destination.name));
 
 alter table public.trips enable row level security;
 alter table public.trip_days enable row level security;
