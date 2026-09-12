@@ -80,6 +80,7 @@ create table if not exists public.trip_legs (
 
 alter table public.trip_legs add column if not exists departure_time time;
 alter table public.trip_legs add column if not exists arrival_time time;
+alter table public.trip_legs add column if not exists trip_day_id bigint references public.trip_days(id) on delete set null;
 alter table public.trip_days add column if not exists destination_id bigint references public.trip_destinations(id) on delete set null;
 
 update public.trip_days as day
