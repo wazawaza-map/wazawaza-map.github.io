@@ -353,6 +353,31 @@ async function updateRow(options: TripPlannerOptions, table: string, id: number,
   await request<void>(options, `${table}?id=eq.${id}`, "PATCH", values, "return=minimal");
 }
 
+function comparableValue(field: string, value: unknown): unknown {
+  if (value === undefined || value === null || value === "") return null;
+  if (field.endsWith("_time") && typeof value === "string") return value.slice(0, 5);
+  return value;
+}
+
+function rowHasChanges(current: object, values: Record<string, unknown>): boolean {
+  const record = current as Record<string, unknown>;
+  return Object.entries(values).some(([field, value]) =>
+    comparableValue(field, record[field]) !== comparableValue(field, value)
+  );
+}
+
+async function updateRowIfChanged(
+  options: TripPlannerOptions,
+  table: string,
+  id: number,
+  current: object,
+  values: Record<string, unknown>,
+): Promise<boolean> {
+  if (!rowHasChanges(current, values)) return false;
+  await updateRow(options, table, id, values);
+  return true;
+}
+
 async function deleteRow(options: TripPlannerOptions, table: string, id: number): Promise<void> {
   await request<void>(options, `${table}?id=eq.${id}`, "DELETE", undefined, "return=minimal");
 }
@@ -371,6 +396,14 @@ async function renumberRows(
   }
   for (const [index, row] of rows.entries()) {
     await updateRow(options, table, row.id, { [field]: index + 1 });
+  }
+}
+
+async function compactStopPositions(options: TripPlannerOptions, stops: TripStop[]): Promise<void> {
+  const sorted = [...stops].sort((a, b) => a.position - b.position);
+  for (const [index, stop] of sorted.entries()) {
+    const position = index + 1;
+    if (stop.position !== position) await updateRow(options, "trip_stops", stop.id, { position });
   }
 }
 
@@ -769,7 +802,7 @@ async function renderTripEditor(options: TripPlannerOptions, tripId: number): Pr
         mapClickBusy = true;
         if (mapMessage) mapMessage.textContent = `Добавляю «${placeName(place)}»…`;
         try {
-          await persistForm();
+          await persistChangedForm();
           await insertRow<TripStop>(options, "trip_stops", {
             trip_day_id: day.id,
             place_id: place.id,
@@ -939,11 +972,11 @@ async function renderTripEditor(options: TripPlannerOptions, tripId: number): Pr
       });
     }
 
-    async function persistForm(): Promise<void> {
+    async function persistChangedForm(): Promise<void> {
       const data = new FormData(form);
       const title = String(data.get("title") || "").trim();
       if (!title) throw new Error("Введите название поездки.");
-      await updateRow(options, "trips", trip.id, {
+      await updateRowIfChanged(options, "trips", trip.id, trip, {
         title,
         status: data.get("status"),
         start_date: String(data.get("start_date") || "") || null,
@@ -963,9 +996,12 @@ async function renderTripEditor(options: TripPlannerOptions, tripId: number): Pr
         if (trip.supports_day_destinations) {
           const destinationId = Number(data.get(`day_${day.id}_destination_id`)) || null;
           dayValues.destination_id = destinationId;
-          dayValues.overnight_city = destinations.find((destination) => destination.id === destinationId)?.name ?? null;
+          const destination = destinations.find((item) => item.id === destinationId);
+          dayValues.overnight_city = destination
+            ? String(data.get(`destination_${destination.id}_name`) || destination.name).trim() || null
+            : null;
         }
-        await updateRow(options, "trip_days", day.id, dayValues);
+        await updateRowIfChanged(options, "trip_days", day.id, day, dayValues);
         for (const stop of day.trip_stops) {
           const stopValues: Record<string, unknown> = {
             planned_time: String(data.get(`stop_${stop.id}_planned_time`) || "") || null,
@@ -975,13 +1011,13 @@ async function renderTripEditor(options: TripPlannerOptions, tripId: number): Pr
             stopValues.admission_status = String(data.get(`stop_${stop.id}_admission_status`) || "") || null;
             stopValues.admission_url = String(data.get(`stop_${stop.id}_admission_url`) || "").trim() || null;
           }
-          await updateRow(options, "trip_stops", stop.id, stopValues);
+          await updateRowIfChanged(options, "trip_stops", stop.id, stop, stopValues);
         }
       }
       for (const booking of trip.trip_bookings) {
         const bookingTitle = String(data.get(`booking_${booking.id}_title`) || "").trim();
         if (!bookingTitle) throw new Error("Укажите название дела.");
-        await updateRow(options, "trip_bookings", booking.id, {
+        await updateRowIfChanged(options, "trip_bookings", booking.id, booking, {
           kind: data.get(`booking_${booking.id}_kind`),
           title: bookingTitle,
           status: data.get(`booking_${booking.id}_status`),
@@ -993,7 +1029,7 @@ async function renderTripEditor(options: TripPlannerOptions, tripId: number): Pr
       for (const destination of destinations) {
         const name = String(data.get(`destination_${destination.id}_name`) || "").trim();
         if (!name) throw new Error("Укажите название города.");
-        await updateRow(options, "trip_destinations", destination.id, {
+        await updateRowIfChanged(options, "trip_destinations", destination.id, destination, {
           name,
           notes: String(data.get(`destination_${destination.id}_notes`) || "").trim() || null,
         });
@@ -1015,12 +1051,12 @@ async function renderTripEditor(options: TripPlannerOptions, tripId: number): Pr
         if (tripRoute?.supportsBookingUrl) {
           values.booking_url = String(data.get(`leg_${leg.id}_booking_url`) || "").trim() || null;
         }
-        await updateRow(options, "trip_legs", leg.id, values);
+        await updateRowIfChanged(options, "trip_legs", leg.id, leg, values);
       }
     }
 
     async function saveDestinationCoordinates(destination: TripDestination, latitude: number, longitude: number): Promise<void> {
-      await persistForm();
+      await persistChangedForm();
       if (activeTripMap) {
         const center = activeTripMap.getCenter();
         savedTripMapView = { tripId: trip.id, center: [center.lat, center.lng], zoom: activeTripMap.getZoom() };
@@ -1053,7 +1089,7 @@ async function renderTripEditor(options: TripPlannerOptions, tripId: number): Pr
       if (submit) submit.disabled = true;
       if (error) error.textContent = "";
       try {
-        await persistForm();
+        await persistChangedForm();
         for (const day of trip.trip_days) await insertPendingStop(day);
         await renderTripEditor(options, trip.id);
       } catch (saveError) {
@@ -1064,7 +1100,7 @@ async function renderTripEditor(options: TripPlannerOptions, tripId: number): Pr
 
     form.querySelector("[data-add-day]")?.addEventListener("click", async () => {
       try {
-        await persistForm();
+        await persistChangedForm();
         const dayNumber = Math.max(0, ...trip.trip_days.map((day) => day.day_number)) + 1;
         let date: string | null = null;
         const currentStartDate = String(new FormData(form).get("start_date") || "") || null;
@@ -1100,19 +1136,14 @@ async function renderTripEditor(options: TripPlannerOptions, tripId: number): Pr
       select.disabled = true;
       if (error) error.textContent = "";
       try {
-        await persistForm();
+        await persistChangedForm();
         const sourceDay = trip.trip_days.find((day) => day.id === sourceDayId);
         const targetDay = trip.trip_days.find((day) => day.id === targetDayId);
         const stop = sourceDay?.trip_stops.find((item) => item.id === stopId);
         if (!sourceDay || !targetDay || !stop) throw new Error("Не удалось найти место для переноса.");
         const targetPosition = Math.max(0, ...targetDay.trip_stops.map((item) => item.position)) + 1;
         await updateRow(options, "trip_stops", stop.id, { trip_day_id: targetDay.id, position: targetPosition });
-        await renumberRows(
-          options,
-          "trip_stops",
-          sourceDay.trip_stops.filter((item) => item.id !== stop.id),
-          "position",
-        );
+        await compactStopPositions(options, sourceDay.trip_stops.filter((item) => item.id !== stop.id));
         savedTripMapDay = { tripId: trip.id, dayId: targetDay.id };
         await renderTripEditor(options, trip.id);
       } catch (transferError) {
@@ -1139,7 +1170,7 @@ async function renderTripEditor(options: TripPlannerOptions, tripId: number): Pr
       try {
         if (addDestination) {
           if (!tripRoute) throw new Error("Сначала выполните актуальный scripts/trip_planner_setup.sql в Supabase.");
-          await persistForm();
+          await persistChangedForm();
           const data = new FormData(form);
           const name = String(data.get("new_destination_name") || "").trim();
           if (!name) throw new Error("Введите название города.");
@@ -1199,7 +1230,7 @@ async function renderTripEditor(options: TripPlannerOptions, tripId: number): Pr
           const index = destinations.findIndex((item) => item.id === destinationId);
           const destination = destinations[index];
           if (!destination || !window.confirm(`Удалить город «${destination.name}» из маршрута?`)) return;
-          await persistForm();
+          await persistChangedForm();
           const previous = destinations[index - 1];
           const next = destinations[index + 1];
           await deleteRow(options, "trip_destinations", destination.id);
@@ -1217,7 +1248,7 @@ async function renderTripEditor(options: TripPlannerOptions, tripId: number): Pr
           }
           await renderTripEditor(options, trip.id);
         } else if (addBooking) {
-          await persistForm();
+          await persistChangedForm();
           const data = new FormData(form);
           const title = String(data.get("new_booking_title") || "").trim();
           if (!title) throw new Error("Введите, что нужно сделать.");
@@ -1230,29 +1261,29 @@ async function renderTripEditor(options: TripPlannerOptions, tripId: number): Pr
           });
           await renderTripEditor(options, trip.id);
         } else if (deleteBooking) {
-          await persistForm();
+          await persistChangedForm();
           await deleteRow(options, "trip_bookings", Number(deleteBooking.dataset.deleteBooking));
           await renderTripEditor(options, trip.id);
         } else if (add) {
-          await persistForm();
+          await persistChangedForm();
           const dayId = Number(add.dataset.addStop);
           const day = trip.trip_days.find((item) => item.id === dayId)!;
           if (!await insertPendingStop(day)) throw new Error("Выберите место или введите свою остановку.");
           await renderTripEditor(options, trip.id);
         } else if (deleteStop) {
-          await persistForm();
+          await persistChangedForm();
           await deleteRow(options, "trip_stops", Number(deleteStop.dataset.deleteStop));
           await renderTripEditor(options, trip.id);
         } else if (deleteDay) {
           if (trip.trip_days.length === 1) throw new Error("В поездке должен остаться хотя бы один день.");
           if (!window.confirm("Удалить день вместе со всеми остановками?")) return;
-          await persistForm();
+          await persistChangedForm();
           await deleteRow(options, "trip_days", Number(deleteDay.dataset.deleteDay));
           const remaining = trip.trip_days.filter((day) => day.id !== Number(deleteDay.dataset.deleteDay));
           await renumberRows(options, "trip_days", remaining, "day_number");
           await renderTripEditor(options, trip.id);
         } else if (move) {
-          await persistForm();
+          await persistChangedForm();
           const stopId = Number(move.dataset.stopId);
           const day = trip.trip_days.find((item) => item.trip_stops.some((stop) => stop.id === stopId))!;
           const index = day.trip_stops.findIndex((stop) => stop.id === stopId);
