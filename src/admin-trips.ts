@@ -45,6 +45,25 @@ type TripBooking = {
   position: number;
 };
 
+type TripDestination = {
+  id: number;
+  name: string;
+  position: number;
+  latitude: number | null;
+  longitude: number | null;
+  notes: string | null;
+};
+
+type TripLeg = {
+  id: number;
+  from_destination_id: number;
+  to_destination_id: number;
+  mode: "train" | "bus" | "car" | "flight" | "ferry" | "walk" | "other";
+  details: string | null;
+  booked: boolean;
+  paid: boolean;
+};
+
 type Trip = {
   id: number;
   title: string;
@@ -83,6 +102,15 @@ const BOOKING_STATUS_LABELS: Record<TripBooking["status"], string> = {
   planned: "Нужно оформить",
   booked: "Забронировано",
   paid: "Куплено / оплачено",
+};
+const TRANSPORT_MODE_LABELS: Record<TripLeg["mode"], string> = {
+  train: "Поезд",
+  bus: "Автобус",
+  car: "Машина",
+  flight: "Самолёт",
+  ferry: "Паром",
+  walk: "Пешком",
+  other: "Другое",
 };
 let activeTripMap: L.Map | undefined;
 let savedTripMapView: { tripId: number; center: L.LatLngTuple; zoom: number } | undefined;
@@ -174,6 +202,20 @@ async function getTrips(options: TripPlannerOptions, id?: number): Promise<Trip[
     trip.trip_bookings.sort((a, b) => a.position - b.position);
   }
   return trips;
+}
+
+async function getTripRoute(options: TripPlannerOptions, tripId: number): Promise<{ destinations: TripDestination[]; legs: TripLeg[] } | null> {
+  try {
+    const [destinations, legs] = await Promise.all([
+      request<TripDestination[]>(options, `trip_destinations?trip_id=eq.${tripId}&select=id,name,position,latitude,longitude,notes&order=position.asc`),
+      request<TripLeg[]>(options, `trip_legs?trip_id=eq.${tripId}&select=id,from_destination_id,to_destination_id,mode,details,booked,paid`),
+    ]);
+    return { destinations, legs };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    if (message.includes("trip_destinations") || message.includes("trip_legs") || message.includes("PGRST205")) return null;
+    throw error;
+  }
 }
 
 async function insertRow<T>(options: TripPlannerOptions, table: string, values: unknown): Promise<T> {
@@ -366,12 +408,60 @@ function bookingEditor(booking: TripBooking): string {
   </article>`;
 }
 
+function tripRouteEditor(tripId: number, route: { destinations: TripDestination[]; legs: TripLeg[] } | null): string {
+  if (!route) {
+    return `<section class="admin-trip-route-section">
+      <header><div><p class="admin-kicker">ГОРОДА И ТРАНСПОРТ</p><h2>Каркас поездки</h2></div></header>
+      <p class="admin-trip-route-setup">Для этого раздела нужно повторно выполнить актуальный <code>scripts/trip_planner_setup.sql</code> в Supabase.</p>
+    </section>`;
+  }
+  const { destinations, legs } = route;
+  return `<section class="admin-trip-route-section" data-trip-route="${tripId}">
+    <header>
+      <div><p class="admin-kicker">ГОРОДА И ТРАНСПОРТ</p><h2>Каркас поездки</h2></div>
+      <span>${destinations.length} ${destinations.length === 1 ? "город" : "городов"}</span>
+    </header>
+    <p class="admin-trip-route-hint">Сначала добавьте города по порядку. Координаты можно поставить на общей карте ниже.</p>
+    <div class="admin-trip-destinations">
+      ${destinations.length ? destinations.map((destination, index) => {
+        const next = destinations[index + 1];
+        const leg = next ? legs.find((item) => item.from_destination_id === destination.id && item.to_destination_id === next.id) : undefined;
+        return `<div class="admin-trip-route-piece">
+          <article class="admin-trip-destination" data-destination-id="${destination.id}">
+            <span class="admin-trip-destination__position">${index + 1}</span>
+            <div class="admin-trip-destination__fields">
+              <label>Город<input name="destination_${destination.id}_name" required value="${escapeHtml(destination.name)}"></label>
+              <label>Комментарий<input name="destination_${destination.id}_notes" value="${escapeHtml(destination.notes || "")}" placeholder="Ночёвка, район, планы…"></label>
+            </div>
+            <div class="admin-trip-destination__actions">
+              <button type="button" class="secondary" data-place-destination="${destination.id}">${destination.latitude == null ? "Поставить на карте" : "Переставить"}</button>
+              <button type="button" class="danger" data-delete-destination="${destination.id}">×</button>
+            </div>
+          </article>
+          ${leg ? `<article class="admin-trip-leg" data-leg-id="${leg.id}">
+            <span class="admin-trip-leg__arrow">↓</span>
+            <label>Транспорт<select name="leg_${leg.id}_mode">${selectOptions(TRANSPORT_MODE_LABELS, leg.mode)}</select></label>
+            <label>Детали<input name="leg_${leg.id}_details" value="${escapeHtml(leg.details || "")}" placeholder="Hayabusa 15, пересадка в…"></label>
+            <label class="admin-trip-check"><input name="leg_${leg.id}_booked" type="checkbox"${leg.booked ? " checked" : ""}> Забронировано</label>
+            <label class="admin-trip-check"><input name="leg_${leg.id}_paid" type="checkbox"${leg.paid ? " checked" : ""}> Оплачено</label>
+          </article>` : ""}
+        </div>`;
+      }).join("") : `<p class="admin-trip-day__empty">Добавьте первый город — для него не нужна запись в базе мест.</p>`}
+    </div>
+    <div class="admin-add-destination">
+      <label>Следующий город<input name="new_destination_name" placeholder="Например, 仙台 / Сендай"></label>
+      <button type="button" data-add-destination>＋ Добавить город</button>
+    </div>
+  </section>`;
+}
+
 async function renderTripEditor(options: TripPlannerOptions, tripId: number): Promise<void> {
   destroyTripMap();
   options.app.innerHTML = `<main class="admin-loading">Открываю поездку…</main>`;
   try {
     const trip = (await getTrips(options, tripId))[0];
     if (!trip) throw new Error("Поездка не найдена.");
+    const tripRoute = await getTripRoute(options, trip.id);
     const places = new Map(options.places.map((place) => [place.id, place]));
     const placeOptions = [...options.places]
       .sort((a, b) => placeName(a).localeCompare(placeName(b), "ru"))
@@ -393,6 +483,7 @@ async function renderTripEditor(options: TripPlannerOptions, tripId: number): Pr
           </div>
           <label>Общий комментарий<textarea name="notes" rows="3">${escapeHtml(trip.notes || "")}</textarea></label>
         </section>
+        ${tripRouteEditor(trip.id, tripRoute)}
         <section class="admin-trip-map-section">
           <div class="admin-trip-map-controls">
             <p class="admin-kicker">МАРШРУТ НА КАРТЕ</p>
@@ -429,6 +520,9 @@ async function renderTripEditor(options: TripPlannerOptions, tripId: number): Pr
 
     const form = document.querySelector<HTMLFormElement>("#trip-editor")!;
     const error = form.querySelector<HTMLElement>(".admin-error");
+    const destinations = tripRoute?.destinations ?? [];
+    const legs = tripRoute?.legs ?? [];
+    let destinationPlacementId: number | null = null;
     document.querySelector("[data-back-to-trips]")?.addEventListener("click", () => void renderTripsDashboard(options));
     document.querySelector("#logout")?.addEventListener("click", () => {
       destroyTripMap();
@@ -456,6 +550,10 @@ async function renderTripEditor(options: TripPlannerOptions, tripId: number): Pr
 
       const addPlaceFromMap = async (place: TripPlannerPlace): Promise<void> => {
         if (mapClickBusy) return;
+        if (destinationPlacementId) {
+          if (mapMessage) mapMessage.textContent = "Для города нажмите на свободное место карты, не на маркер достопримечательности.";
+          return;
+        }
         const dayId = Number(mapDaySelect?.value);
         const day = trip.trip_days.find((item) => item.id === dayId);
         if (!day) return;
@@ -494,6 +592,44 @@ async function renderTripEditor(options: TripPlannerOptions, tripId: number): Pr
         marker.on("click", () => void addPlaceFromMap(place));
       }
 
+      const cityLatLngs: L.LatLngExpression[] = [];
+      for (const [index, destination] of destinations.entries()) {
+        if (destination.latitude == null || destination.longitude == null) continue;
+        const point: L.LatLngExpression = [destination.latitude, destination.longitude];
+        cityLatLngs.push(point);
+        const marker = L.marker(point, {
+          draggable: true,
+          title: destination.name,
+          icon: L.divIcon({
+            className: "admin-trip-city-marker-wrap",
+            html: `<span class="admin-trip-city-marker"><b>${index + 1}</b></span>`,
+            iconSize: [38, 38],
+            iconAnchor: [19, 19],
+          }),
+        }).bindTooltip(`<strong>${escapeHtml(destination.name)}</strong><br><small>Перетащите, чтобы уточнить точку</small>`).addTo(activeTripMap);
+        marker.on("dragend", () => {
+          const point = marker.getLatLng();
+          void saveDestinationCoordinates(destination, point.lat, point.lng);
+        });
+      }
+      if (cityLatLngs.length > 1) {
+        L.polyline(cityLatLngs, { color: "#245e82", weight: 4, opacity: 0.76, dashArray: "8 7" }).addTo(activeTripMap);
+      }
+
+      activeTripMap.on("click", (event) => {
+        if (!destinationPlacementId || mapClickBusy) return;
+        const destination = destinations.find((item) => item.id === destinationPlacementId);
+        if (!destination) return;
+        mapClickBusy = true;
+        if (mapMessage) mapMessage.textContent = `Ставлю «${destination.name}» на карту…`;
+        void saveDestinationCoordinates(destination, event.latlng.lat, event.latlng.lng).catch((mapError) => {
+          mapClickBusy = false;
+          const message = setupMessage(mapError);
+          if (mapMessage) mapMessage.textContent = message;
+          if (error) error.textContent = message;
+        });
+      });
+
       const latLngs: L.LatLngExpression[] = [];
       for (const { day, stop, place } of routePoints) {
         const point: L.LatLngExpression = [place.latitude, place.longitude];
@@ -513,6 +649,8 @@ async function renderTripEditor(options: TripPlannerOptions, tripId: number): Pr
       if (latLngs.length > 1) L.polyline(latLngs, { color: "#d14b36", weight: 3, opacity: 0.72 }).addTo(activeTripMap);
       if (savedTripMapView?.tripId === trip.id) {
         activeTripMap.setView(savedTripMapView.center, savedTripMapView.zoom);
+      } else if (cityLatLngs.length) {
+        activeTripMap.fitBounds(L.latLngBounds(cityLatLngs), { padding: [36, 36], maxZoom: 10 });
       } else if (latLngs.length) {
         activeTripMap.fitBounds(L.latLngBounds(latLngs), { padding: [36, 36], maxZoom: 13 });
       } else {
@@ -564,6 +702,32 @@ async function renderTripEditor(options: TripPlannerOptions, tripId: number): Pr
           notes: String(data.get(`booking_${booking.id}_notes`) || "").trim() || null,
         });
       }
+      for (const destination of destinations) {
+        const name = String(data.get(`destination_${destination.id}_name`) || "").trim();
+        if (!name) throw new Error("Укажите название города.");
+        await updateRow(options, "trip_destinations", destination.id, {
+          name,
+          notes: String(data.get(`destination_${destination.id}_notes`) || "").trim() || null,
+        });
+      }
+      for (const leg of legs) {
+        await updateRow(options, "trip_legs", leg.id, {
+          mode: data.get(`leg_${leg.id}_mode`),
+          details: String(data.get(`leg_${leg.id}_details`) || "").trim() || null,
+          booked: data.get(`leg_${leg.id}_booked`) === "on",
+          paid: data.get(`leg_${leg.id}_paid`) === "on",
+        });
+      }
+    }
+
+    async function saveDestinationCoordinates(destination: TripDestination, latitude: number, longitude: number): Promise<void> {
+      await persistForm();
+      if (activeTripMap) {
+        const center = activeTripMap.getCenter();
+        savedTripMapView = { tripId: trip.id, center: [center.lat, center.lng], zoom: activeTripMap.getZoom() };
+      }
+      await updateRow(options, "trip_destinations", destination.id, { latitude, longitude });
+      await renderTripEditor(options, trip.id);
     }
 
     async function insertPendingStop(day: TripDay): Promise<boolean> {
@@ -635,8 +799,60 @@ async function renderTripEditor(options: TripPlannerOptions, tripId: number): Pr
       const move = target.closest<HTMLButtonElement>("[data-move-stop]");
       const addBooking = target.closest<HTMLButtonElement>("[data-add-booking]");
       const deleteBooking = target.closest<HTMLButtonElement>("[data-delete-booking]");
+      const addDestination = target.closest<HTMLButtonElement>("[data-add-destination]");
+      const placeDestination = target.closest<HTMLButtonElement>("[data-place-destination]");
+      const deleteDestination = target.closest<HTMLButtonElement>("[data-delete-destination]");
       try {
-        if (addBooking) {
+        if (addDestination) {
+          if (!tripRoute) throw new Error("Сначала выполните актуальный scripts/trip_planner_setup.sql в Supabase.");
+          await persistForm();
+          const data = new FormData(form);
+          const name = String(data.get("new_destination_name") || "").trim();
+          if (!name) throw new Error("Введите название города.");
+          const previous = destinations.at(-1);
+          const destination = await insertRow<TripDestination>(options, "trip_destinations", {
+            trip_id: trip.id,
+            name,
+            position: destinations.length + 1,
+          });
+          if (previous) {
+            await insertRow<TripLeg>(options, "trip_legs", {
+              trip_id: trip.id,
+              from_destination_id: previous.id,
+              to_destination_id: destination.id,
+              mode: "train",
+            });
+          }
+          await renderTripEditor(options, trip.id);
+        } else if (placeDestination) {
+          destinationPlacementId = Number(placeDestination.dataset.placeDestination);
+          const destination = destinations.find((item) => item.id === destinationPlacementId);
+          mapElement?.classList.add("is-placing-city");
+          if (mapMessage && destination) mapMessage.textContent = `Нажмите на карту, чтобы поставить «${destination.name}».`;
+          mapElement?.scrollIntoView({ behavior: "smooth", block: "center" });
+        } else if (deleteDestination) {
+          const destinationId = Number(deleteDestination.dataset.deleteDestination);
+          const index = destinations.findIndex((item) => item.id === destinationId);
+          const destination = destinations[index];
+          if (!destination || !window.confirm(`Удалить город «${destination.name}» из маршрута?`)) return;
+          await persistForm();
+          const previous = destinations[index - 1];
+          const next = destinations[index + 1];
+          await deleteRow(options, "trip_destinations", destination.id);
+          const remaining = destinations.filter((item) => item.id !== destination.id);
+          for (const [position, item] of remaining.entries()) {
+            if (item.position !== position + 1) await updateRow(options, "trip_destinations", item.id, { position: position + 1 });
+          }
+          if (previous && next) {
+            await insertRow<TripLeg>(options, "trip_legs", {
+              trip_id: trip.id,
+              from_destination_id: previous.id,
+              to_destination_id: next.id,
+              mode: "train",
+            });
+          }
+          await renderTripEditor(options, trip.id);
+        } else if (addBooking) {
           await persistForm();
           const data = new FormData(form);
           const title = String(data.get("new_booking_title") || "").trim();

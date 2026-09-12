@@ -108,6 +108,23 @@ button, input, select { font: inherit; }
 .admin-trip-card .admin-trip-card__note { margin-top: 8px; color: #191919; }
 .admin-trip-basics { margin: 24px 0; padding: 22px; border: 1px solid #222; background: #f4f1e9; }
 .admin-trip-basics > label { margin-top: 16px; }
+.admin-trip-route-section { margin-bottom: 18px; padding: 20px; border: 1px solid #222; background: #f4f1e9; }
+.admin-trip-route-section > header { display: flex; justify-content: space-between; gap: 16px; align-items: start; margin-bottom: 10px; }
+.admin-trip-route-section h2 { margin: 0; font-family: Georgia, serif; font-size: 27px; font-weight: 500; }
+.admin-trip-route-section > header > span { font-size: 12px; font-weight: 800; }
+.admin-trip-route-hint, .admin-trip-route-setup { margin: 0 0 16px; color: #625e56; font-size: 12px; }
+.admin-trip-route-setup { padding: 14px; border: 1px solid #c8c3b8; background: #fff; }
+.admin-trip-destinations { display: grid; gap: 0; }
+.admin-trip-destination { display: grid; grid-template-columns: 34px minmax(0, 1fr) auto; gap: 12px; align-items: center; padding: 12px; border: 1px solid #c8c3b8; background: #fff; }
+.admin-trip-destination__position { display: grid; width: 30px; height: 30px; place-items: center; border-radius: 50%; background: #245e82; color: #fff; font-size: 12px; font-weight: 800; }
+.admin-trip-destination__fields { display: grid; grid-template-columns: minmax(180px, .7fr) minmax(240px, 1fr); gap: 10px; }
+.admin-trip-destination__actions { display: flex; gap: 6px; }
+.admin-trip-destination__actions button { white-space: nowrap; }
+.admin-trip-leg { display: grid; grid-template-columns: 34px 150px minmax(220px, 1fr) auto auto; gap: 12px; align-items: end; margin: 0 18px; padding: 10px 12px; border-right: 1px solid #c8c3b8; border-left: 1px solid #c8c3b8; background: #e9eef0; }
+.admin-trip-leg__arrow { align-self: center; color: #245e82; text-align: center; font-size: 21px; }
+.admin-trip-editor .admin-trip-check { display: flex; min-height: 39px; gap: 7px; align-items: center; white-space: nowrap; }
+.admin-trip-editor .admin-trip-check input { width: 17px; height: 17px; }
+.admin-add-destination { display: grid; grid-template-columns: minmax(240px, 1fr) auto; gap: 10px; align-items: end; margin-top: 14px; padding-top: 14px; border-top: 1px solid #817c72; }
 .admin-trip-map-section { display: grid; grid-template-columns: minmax(180px, .35fr) 1fr; gap: 20px; align-items: start; margin-bottom: 18px; padding: 20px; border: 1px solid #222; background: #f4f1e9; }
 .admin-trip-map-section p { margin: 0; color: #625e56; font-size: 12px; line-height: 1.5; }
 .admin-trip-map-controls { display: grid; gap: 12px; }
@@ -115,9 +132,13 @@ button, input, select { font: inherit; }
 .admin-trip-map-controls select { width: 100%; min-width: 0; }
 .admin-trip-map-section .admin-trip-map-message { min-height: 2.8em; color: #a33a2b; font-weight: 700; }
 .admin-trip-map { display: block; height: 390px; border: 1px solid #817c72; background: #d9ddd3; }
+.admin-trip-map.is-placing-city, .admin-trip-map.is-placing-city .leaflet-grab { cursor: crosshair; }
 .admin-trip-map__empty { padding: 20px; text-align: center; }
 .admin-trip-marker-wrap { background: transparent; border: 0; }
 .admin-trip-marker { display: grid; width: 30px; height: 30px; place-items: center; border: 2px solid #f4f1e9; border-radius: 50%; background: #222; color: #fff; box-shadow: 0 1px 5px rgba(0,0,0,.5); font-size: 10px; font-weight: 800; }
+.admin-trip-city-marker-wrap { background: transparent; border: 0; }
+.admin-trip-city-marker { display: grid; width: 38px; height: 38px; place-items: center; border: 3px solid #f4f1e9; border-radius: 50% 50% 50% 8px; background: #245e82; color: #fff; box-shadow: 0 2px 7px rgba(0,0,0,.5); font-size: 13px; font-weight: 800; transform: rotate(-45deg); }
+.admin-trip-city-marker b { transform: rotate(45deg); }
 .admin-bookings-section { margin-bottom: 18px; padding: 20px; border: 1px solid #222; background: #f4f1e9; }
 .admin-bookings-section > header { display: flex; justify-content: space-between; gap: 16px; align-items: start; margin-bottom: 16px; padding-bottom: 14px; border-bottom: 1px solid #817c72; }
 .admin-bookings-section h2 { margin: 0; font-family: Georgia, serif; font-size: 27px; font-weight: 500; }
@@ -166,7 +187,7 @@ button, input, select { font: inherit; }
   .admin-editor__footer { align-items: stretch; flex-direction: column; }
   .admin-editor__danger-actions, .admin-editor__save-actions { display: grid; grid-template-columns: 1fr 1fr; }
   .admin-form-grid, .admin-visited-control { grid-template-columns: 1fr; }
-  .admin-create-trip, .admin-add-stop { grid-template-columns: 1fr; }
+  .admin-create-trip, .admin-add-stop, .admin-add-destination { grid-template-columns: 1fr; }
   .admin-add-stop > span { display: none; }
   .admin-trip-card, .admin-trip-editor__footer { align-items: stretch; flex-direction: column; }
   .admin-trip-stop { grid-template-columns: 30px minmax(0, 1fr); }
@@ -175,6 +196,11 @@ button, input, select { font: inherit; }
   .admin-trip-editor__footer > div { display: grid; grid-template-columns: 1fr; }
   .admin-trip-map-section { grid-template-columns: 1fr; }
   .admin-trip-map { height: 55vh; min-height: 320px; }
+  .admin-trip-destination { grid-template-columns: 30px minmax(0, 1fr); }
+  .admin-trip-destination__fields, .admin-trip-leg { grid-template-columns: 1fr; }
+  .admin-trip-destination__actions { grid-column: 2; }
+  .admin-trip-leg { margin: 0 10px; }
+  .admin-trip-leg__arrow { display: none; }
   .admin-booking { grid-template-columns: 12px minmax(0, 1fr); }
   .admin-booking__fields, .admin-add-booking { grid-template-columns: 1fr; }
   .admin-booking__note { grid-column: auto; }
