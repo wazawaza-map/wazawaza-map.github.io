@@ -332,6 +332,23 @@ async function deleteRow(options: TripPlannerOptions, table: string, id: number)
   await request<void>(options, `${table}?id=eq.${id}`, "DELETE", undefined, "return=minimal");
 }
 
+async function renumberRows(
+  options: TripPlannerOptions,
+  table: "trip_days" | "trip_stops",
+  rows: Array<{ id: number; position?: number; day_number?: number }>,
+  field: "position" | "day_number",
+): Promise<void> {
+  if (!rows.length) return;
+  const currentMaximum = Math.max(0, ...rows.map((row) => Number(row[field]) || 0));
+  const temporaryStart = currentMaximum + rows.length + 1_000;
+  for (const [index, row] of rows.entries()) {
+    await updateRow(options, table, row.id, { [field]: temporaryStart + index });
+  }
+  for (const [index, row] of rows.entries()) {
+    await updateRow(options, table, row.id, { [field]: index + 1 });
+  }
+}
+
 function primaryNav(active: "places" | "trips"): string {
   return `<nav class="admin-primary-nav" aria-label="Разделы админки">
     <button type="button" data-admin-section="places" aria-pressed="${active === "places"}">Места</button>
@@ -448,7 +465,13 @@ function stopTitle(stop: TripStop, places: Map<number, TripPlannerPlace>): strin
   return stop.custom_name || "Остановка";
 }
 
-function dayEditor(day: TripDay, places: Map<number, TripPlannerPlace>, destinations: TripDestination[], supportsDayDestinations: boolean): string {
+function dayEditor(
+  day: TripDay,
+  days: TripDay[],
+  places: Map<number, TripPlannerPlace>,
+  destinations: TripDestination[],
+  supportsDayDestinations: boolean,
+): string {
   return `<section class="admin-trip-day" data-day-id="${day.id}">
     <header class="admin-trip-day__header">
       <div><p class="admin-kicker">ДЕНЬ ${day.day_number}</p><h2>${escapeHtml(day.date || "Без даты")}</h2></div>
@@ -472,6 +495,9 @@ function dayEditor(day: TripDay, places: Map<number, TripPlannerPlace>, destinat
           <div class="admin-trip-stop__fields">
             <label>Время<input name="stop_${stop.id}_planned_time" type="time" value="${escapeHtml((stop.planned_time || "").slice(0, 5))}"></label>
             <label>Заметка<input name="stop_${stop.id}_notes" value="${escapeHtml(stop.notes || "")}"></label>
+            <label>День<select data-transfer-stop="${stop.id}" data-current-day="${day.id}">
+              ${days.map((candidate) => `<option value="${candidate.id}"${candidate.id === day.id ? " selected" : ""}>День ${candidate.day_number}${candidate.date ? ` · ${escapeHtml(candidate.date)}` : ""}</option>`).join("")}
+            </select></label>
           </div>
         </div>
         <div class="admin-trip-stop__actions">
@@ -628,7 +654,7 @@ async function renderTripEditor(options: TripPlannerOptions, tripId: number): Pr
         </section>
         <datalist id="trip-place-options">${placeOptions}</datalist>
         ${trip.supports_day_destinations ? "" : `<p class="admin-trip-route-setup">Повторно выполните актуальный SQL, чтобы привязать дни к городам.</p>`}
-        <div class="admin-trip-days">${trip.trip_days.map((day) => dayEditor(day, places, tripRoute?.destinations ?? [], trip.supports_day_destinations)).join("")}</div>
+        <div class="admin-trip-days">${trip.trip_days.map((day) => dayEditor(day, trip.trip_days, places, tripRoute?.destinations ?? [], trip.supports_day_destinations)).join("")}</div>
         <div class="admin-trip-editor__footer">
           <button type="button" class="danger" data-delete-trip>Удалить поездку</button>
           <div><button type="button" class="secondary" data-add-day>＋ Добавить день</button><button type="submit">Сохранить всё</button></div>
@@ -1008,6 +1034,41 @@ async function renderTripEditor(options: TripPlannerOptions, tripId: number): Pr
       }
     });
 
+    form.addEventListener("change", async (event) => {
+      const select = (event.target as HTMLElement).closest<HTMLSelectElement>("[data-transfer-stop]");
+      if (!select) return;
+      const stopId = Number(select.dataset.transferStop);
+      const sourceDayId = Number(select.dataset.currentDay);
+      const targetDayId = Number(select.value);
+      if (!stopId || !sourceDayId || !targetDayId || sourceDayId === targetDayId) return;
+      select.disabled = true;
+      if (error) error.textContent = "";
+      try {
+        await persistForm();
+        const sourceDay = trip.trip_days.find((day) => day.id === sourceDayId);
+        const targetDay = trip.trip_days.find((day) => day.id === targetDayId);
+        const stop = sourceDay?.trip_stops.find((item) => item.id === stopId);
+        if (!sourceDay || !targetDay || !stop) throw new Error("Не удалось найти место для переноса.");
+        const targetPosition = Math.max(0, ...targetDay.trip_stops.map((item) => item.position)) + 1;
+        await updateRow(options, "trip_stops", stop.id, { trip_day_id: targetDay.id, position: targetPosition });
+        await renumberRows(
+          options,
+          "trip_stops",
+          sourceDay.trip_stops.filter((item) => item.id !== stop.id),
+          "position",
+        );
+        savedTripMapDay = { tripId: trip.id, dayId: targetDay.id };
+        await renderTripEditor(options, trip.id);
+      } catch (transferError) {
+        select.value = String(sourceDayId);
+        select.disabled = false;
+        if (error) {
+          error.textContent = setupMessage(transferError);
+          error.scrollIntoView({ behavior: "smooth", block: "center" });
+        }
+      }
+    });
+
     form.addEventListener("click", async (event) => {
       const target = event.target as HTMLElement;
       const add = target.closest<HTMLButtonElement>("[data-add-stop]");
@@ -1132,7 +1193,7 @@ async function renderTripEditor(options: TripPlannerOptions, tripId: number): Pr
           await persistForm();
           await deleteRow(options, "trip_days", Number(deleteDay.dataset.deleteDay));
           const remaining = trip.trip_days.filter((day) => day.id !== Number(deleteDay.dataset.deleteDay));
-          for (const [index, day] of remaining.entries()) await updateRow(options, "trip_days", day.id, { day_number: index + 1 });
+          await renumberRows(options, "trip_days", remaining, "day_number");
           await renderTripEditor(options, trip.id);
         } else if (move) {
           await persistForm();

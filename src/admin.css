@@ -163,7 +163,7 @@ button, input, select { font: inherit; }
 .admin-trip-stop { display: grid; grid-template-columns: 34px minmax(0, 1fr) auto; gap: 12px; align-items: center; padding: 12px; border: 1px solid #c8c3b8; background: #fff; }
 .admin-trip-stop__position { display: grid; width: 28px; height: 28px; place-items: center; border-radius: 50%; background: #222; color: #fff; font-size: 12px; }
 .admin-trip-stop__content strong { display: block; margin-bottom: 9px; }
-.admin-trip-stop__fields { display: grid; grid-template-columns: 120px minmax(180px, 1fr); gap: 10px; }
+.admin-trip-stop__fields { display: grid; grid-template-columns: 110px minmax(180px, 1fr) minmax(145px, .55fr); gap: 10px; }
 .admin-trip-stop__actions { display: flex; gap: 4px; }
 .admin-trip-stop__actions button { min-width: 34px; padding: 6px 8px; }
 .admin-trip-editor button.secondary { background: transparent; color: #222; }
