@@ -60,8 +60,16 @@ type TripLeg = {
   to_destination_id: number;
   mode: "train" | "bus" | "car" | "flight" | "ferry" | "walk" | "other";
   details: string | null;
+  departure_time: string | null;
+  arrival_time: string | null;
   booked: boolean;
   paid: boolean;
+};
+
+type TripRouteData = {
+  destinations: TripDestination[];
+  legs: TripLeg[];
+  supportsTimes: boolean;
 };
 
 type CitySearchResult = {
@@ -248,15 +256,26 @@ async function getTrips(options: TripPlannerOptions, id?: number): Promise<Trip[
   return trips;
 }
 
-async function getTripRoute(options: TripPlannerOptions, tripId: number): Promise<{ destinations: TripDestination[]; legs: TripLeg[] } | null> {
+async function getTripRoute(options: TripPlannerOptions, tripId: number): Promise<TripRouteData | null> {
   try {
     const [destinations, legs] = await Promise.all([
       request<TripDestination[]>(options, `trip_destinations?trip_id=eq.${tripId}&select=id,name,position,latitude,longitude,notes&order=position.asc`),
-      request<TripLeg[]>(options, `trip_legs?trip_id=eq.${tripId}&select=id,from_destination_id,to_destination_id,mode,details,booked,paid`),
+      request<TripLeg[]>(options, `trip_legs?trip_id=eq.${tripId}&select=id,from_destination_id,to_destination_id,mode,details,departure_time,arrival_time,booked,paid`),
     ]);
-    return { destinations, legs };
+    return { destinations, legs, supportsTimes: true };
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
+    if (message.includes("departure_time") || message.includes("arrival_time")) {
+      const [destinations, legacyLegs] = await Promise.all([
+        request<TripDestination[]>(options, `trip_destinations?trip_id=eq.${tripId}&select=id,name,position,latitude,longitude,notes&order=position.asc`),
+        request<Omit<TripLeg, "departure_time" | "arrival_time">[]>(options, `trip_legs?trip_id=eq.${tripId}&select=id,from_destination_id,to_destination_id,mode,details,booked,paid`),
+      ]);
+      return {
+        destinations,
+        legs: legacyLegs.map((leg) => ({ ...leg, departure_time: null, arrival_time: null })),
+        supportsTimes: false,
+      };
+    }
     if (message.includes("trip_destinations") || message.includes("trip_legs") || message.includes("PGRST205")) return null;
     throw error;
   }
@@ -452,7 +471,7 @@ function bookingEditor(booking: TripBooking): string {
   </article>`;
 }
 
-function tripRouteEditor(tripId: number, route: { destinations: TripDestination[]; legs: TripLeg[] } | null): string {
+function tripRouteEditor(tripId: number, route: TripRouteData | null): string {
   if (!route) {
     return `<section class="admin-trip-route-section">
       <header><div><p class="admin-kicker">ГОРОДА И ТРАНСПОРТ</p><h2>Каркас поездки</h2></div></header>
@@ -466,6 +485,7 @@ function tripRouteEditor(tripId: number, route: { destinations: TripDestination[
       <span>${destinations.length} ${destinations.length === 1 ? "город" : "городов"}</span>
     </header>
     <p class="admin-trip-route-hint">Сначала добавьте города по порядку. Координаты можно поставить на общей карте ниже.</p>
+    ${route.supportsTimes ? "" : `<p class="admin-trip-route-setup">Повторно выполните актуальный SQL, чтобы включить время отправления и прибытия.</p>`}
     <div class="admin-trip-destinations">
       ${destinations.length ? destinations.map((destination, index) => {
         const next = destinations[index + 1];
@@ -486,6 +506,8 @@ function tripRouteEditor(tripId: number, route: { destinations: TripDestination[
             <span class="admin-trip-leg__arrow">↓</span>
             <label>Транспорт<select name="leg_${leg.id}_mode">${selectOptions(TRANSPORT_MODE_LABELS, leg.mode)}</select></label>
             <label>Детали<input name="leg_${leg.id}_details" value="${escapeHtml(leg.details || "")}" placeholder="Hayabusa 15, пересадка в…"></label>
+            <label>Отправление<input name="leg_${leg.id}_departure_time" type="time" value="${escapeHtml((leg.departure_time || "").slice(0, 5))}"${route.supportsTimes ? "" : " disabled"}></label>
+            <label>Прибытие<input name="leg_${leg.id}_arrival_time" type="time" value="${escapeHtml((leg.arrival_time || "").slice(0, 5))}"${route.supportsTimes ? "" : " disabled"}></label>
             <label class="admin-trip-check"><input name="leg_${leg.id}_booked" type="checkbox"${leg.booked ? " checked" : ""}> Забронировано</label>
             <label class="admin-trip-check"><input name="leg_${leg.id}_paid" type="checkbox"${leg.paid ? " checked" : ""}> Оплачено</label>
           </article>` : ""}
@@ -759,12 +781,17 @@ async function renderTripEditor(options: TripPlannerOptions, tripId: number): Pr
         });
       }
       for (const leg of legs) {
-        await updateRow(options, "trip_legs", leg.id, {
+        const values: Record<string, unknown> = {
           mode: data.get(`leg_${leg.id}_mode`),
           details: String(data.get(`leg_${leg.id}_details`) || "").trim() || null,
           booked: data.get(`leg_${leg.id}_booked`) === "on",
           paid: data.get(`leg_${leg.id}_paid`) === "on",
-        });
+        };
+        if (tripRoute?.supportsTimes) {
+          values.departure_time = String(data.get(`leg_${leg.id}_departure_time`) || "") || null;
+          values.arrival_time = String(data.get(`leg_${leg.id}_arrival_time`) || "") || null;
+        }
+        await updateRow(options, "trip_legs", leg.id, values);
       }
     }
 

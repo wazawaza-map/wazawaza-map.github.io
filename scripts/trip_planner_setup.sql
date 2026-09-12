@@ -70,11 +70,16 @@ create table if not exists public.trip_legs (
   to_destination_id bigint not null references public.trip_destinations(id) on delete cascade,
   mode text not null default 'train' check (mode in ('train', 'bus', 'car', 'flight', 'ferry', 'walk', 'other')),
   details text,
+  departure_time time,
+  arrival_time time,
   booked boolean not null default false,
   paid boolean not null default false,
   unique (from_destination_id, to_destination_id),
   check (from_destination_id <> to_destination_id)
 );
+
+alter table public.trip_legs add column if not exists departure_time time;
+alter table public.trip_legs add column if not exists arrival_time time;
 
 alter table public.trips enable row level security;
 alter table public.trip_days enable row level security;
