@@ -64,6 +64,12 @@ type TripLeg = {
   paid: boolean;
 };
 
+type CitySearchResult = {
+  latitude: number;
+  longitude: number;
+  label: string;
+};
+
 type Trip = {
   id: number;
   title: string;
@@ -149,6 +155,40 @@ function tripDates(trip: Trip): string {
   if (!trip.start_date && !trip.end_date) return "Даты пока не указаны";
   if (!trip.end_date || trip.end_date === trip.start_date) return trip.start_date ?? trip.end_date!;
   return `${trip.start_date ?? "?"} — ${trip.end_date}`;
+}
+
+async function searchJapaneseCity(query: string): Promise<CitySearchResult | null> {
+  const normalized = query.normalize("NFKC").trim().toLocaleLowerCase("ja");
+  const cacheKey = `wazawaza-city-search:${normalized}`;
+  const cached = localStorage.getItem(cacheKey);
+  if (cached) return JSON.parse(cached) as CitySearchResult | null;
+
+  const params = new URLSearchParams({
+    q: query,
+    format: "jsonv2",
+    countrycodes: "jp",
+    limit: "5",
+    addressdetails: "1",
+    "accept-language": "ja,ru,en",
+  });
+  const response = await fetch(`https://nominatim.openstreetmap.org/search?${params}`);
+  if (!response.ok) throw new Error(`Поиск города временно недоступен (${response.status}).`);
+  const results = await response.json() as Array<{
+    lat: string;
+    lon: string;
+    display_name: string;
+    type?: string;
+    addresstype?: string;
+  }>;
+  const cityTypes = new Set(["city", "town", "village", "municipality", "administrative"]);
+  const match = results.find((result) => cityTypes.has(result.addresstype || result.type || "")) ?? results[0];
+  const found = match ? {
+    latitude: Number(match.lat),
+    longitude: Number(match.lon),
+    label: match.display_name,
+  } : null;
+  localStorage.setItem(cacheKey, JSON.stringify(found));
+  return found;
 }
 
 async function request<T>(
@@ -523,6 +563,7 @@ async function renderTripEditor(options: TripPlannerOptions, tripId: number): Pr
     const destinations = tripRoute?.destinations ?? [];
     const legs = tripRoute?.legs ?? [];
     let destinationPlacementId: number | null = null;
+    let suggestedCityMarker: L.Marker | undefined;
     document.querySelector("[data-back-to-trips]")?.addEventListener("click", () => void renderTripsDashboard(options));
     document.querySelector("#logout")?.addEventListener("click", () => {
       destroyTripMap();
@@ -828,8 +869,38 @@ async function renderTripEditor(options: TripPlannerOptions, tripId: number): Pr
           destinationPlacementId = Number(placeDestination.dataset.placeDestination);
           const destination = destinations.find((item) => item.id === destinationPlacementId);
           mapElement?.classList.add("is-placing-city");
-          if (mapMessage && destination) mapMessage.textContent = `Нажмите на карту, чтобы поставить «${destination.name}».`;
           mapElement?.scrollIntoView({ behavior: "smooth", block: "center" });
+          if (!destination || !activeTripMap) return;
+          const currentName = String(new FormData(form).get(`destination_${destination.id}_name`) || destination.name).trim();
+          if (mapMessage) mapMessage.textContent = `Ищу «${currentName}» в Японии…`;
+          suggestedCityMarker?.remove();
+          const suggestion = await searchJapaneseCity(currentName);
+          if (!suggestion) {
+            if (mapMessage) mapMessage.textContent = `Не нашла «${currentName}». Нажмите на нужное место карты вручную.`;
+            return;
+          }
+          activeTripMap.flyTo([suggestion.latitude, suggestion.longitude], 10);
+          suggestedCityMarker = L.marker([suggestion.latitude, suggestion.longitude], {
+            title: `Предложение: ${suggestion.label}`,
+            icon: L.divIcon({
+              className: "admin-trip-city-suggestion-wrap",
+              html: `<span class="admin-trip-city-suggestion">?</span>`,
+              iconSize: [36, 36],
+              iconAnchor: [18, 18],
+            }),
+          }).bindTooltip(`<strong>${escapeHtml(suggestion.label)}</strong><br><small>Нажмите, чтобы подтвердить</small>`, { permanent: true, direction: "top" }).addTo(activeTripMap);
+          suggestedCityMarker.on("click", () => {
+            if (mapClickBusy) return;
+            mapClickBusy = true;
+            if (mapMessage) mapMessage.textContent = `Сохраняю «${currentName}»…`;
+            void saveDestinationCoordinates(destination, suggestion.latitude, suggestion.longitude).catch((mapError) => {
+              mapClickBusy = false;
+              const message = setupMessage(mapError);
+              if (mapMessage) mapMessage.textContent = message;
+              if (error) error.textContent = message;
+            });
+          });
+          if (mapMessage) mapMessage.textContent = "Нашла вариант. Нажмите на жёлтый маркер, чтобы подтвердить, или выберите другую точку вручную.";
         } else if (deleteDestination) {
           const destinationId = Number(deleteDestination.dataset.deleteDestination);
           const index = destinations.findIndex((item) => item.id === destinationId);

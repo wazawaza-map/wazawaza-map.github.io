@@ -139,6 +139,8 @@ button, input, select { font: inherit; }
 .admin-trip-city-marker-wrap { background: transparent; border: 0; }
 .admin-trip-city-marker { display: grid; width: 38px; height: 38px; place-items: center; border: 3px solid #f4f1e9; border-radius: 50% 50% 50% 8px; background: #245e82; color: #fff; box-shadow: 0 2px 7px rgba(0,0,0,.5); font-size: 13px; font-weight: 800; transform: rotate(-45deg); }
 .admin-trip-city-marker b { transform: rotate(45deg); }
+.admin-trip-city-suggestion-wrap { background: transparent; border: 0; }
+.admin-trip-city-suggestion { display: grid; width: 36px; height: 36px; place-items: center; border: 3px solid #fff; border-radius: 50%; background: #d9a91a; color: #191919; box-shadow: 0 2px 8px rgba(0,0,0,.5); font-size: 17px; font-weight: 900; }
 .admin-bookings-section { margin-bottom: 18px; padding: 20px; border: 1px solid #222; background: #f4f1e9; }
 .admin-bookings-section > header { display: flex; justify-content: space-between; gap: 16px; align-items: start; margin-bottom: 16px; padding-bottom: 14px; border-bottom: 1px solid #817c72; }
 .admin-bookings-section h2 { margin: 0; font-family: Georgia, serif; font-size: 27px; font-weight: 500; }
