@@ -22,6 +22,7 @@ create table if not exists public.trip_days (
   overnight_city text,
   lodging_name text,
   lodging_url text,
+  lodging_status text check (lodging_status is null or lodging_status in ('planned', 'booked', 'paid')),
   notes text,
   unique (trip_id, day_number)
 );
@@ -34,6 +35,8 @@ create table if not exists public.trip_stops (
   custom_name text,
   planned_time time,
   notes text,
+  admission_status text check (admission_status is null or admission_status in ('planned', 'booked', 'paid')),
+  admission_url text,
   unique (trip_day_id, position),
   check (place_id is not null or nullif(trim(custom_name), '') is not null)
 );
@@ -74,6 +77,7 @@ create table if not exists public.trip_legs (
   arrival_time time,
   booked boolean not null default false,
   paid boolean not null default false,
+  booking_url text,
   unique (from_destination_id, to_destination_id),
   check (from_destination_id <> to_destination_id)
 );
@@ -81,7 +85,11 @@ create table if not exists public.trip_legs (
 alter table public.trip_legs add column if not exists departure_time time;
 alter table public.trip_legs add column if not exists arrival_time time;
 alter table public.trip_legs add column if not exists trip_day_id bigint references public.trip_days(id) on delete set null;
+alter table public.trip_legs add column if not exists booking_url text;
 alter table public.trip_days add column if not exists destination_id bigint references public.trip_destinations(id) on delete set null;
+alter table public.trip_days add column if not exists lodging_status text;
+alter table public.trip_stops add column if not exists admission_status text;
+alter table public.trip_stops add column if not exists admission_url text;
 
 update public.trip_days as day
 set destination_id = destination.id
