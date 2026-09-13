@@ -546,7 +546,7 @@ function dayEditor(
       <label>Дата<input name="day_${day.id}_date" type="date" value="${escapeHtml(day.date || "")}"></label>
       <label>Город ночёвки / база<select name="day_${day.id}_destination_id"${supportsDayDestinations ? "" : " disabled"}>
         <option value="">Не выбран</option>
-        ${destinations.map((destination) => `<option value="${destination.id}"${destination.id === day.destination_id ? " selected" : ""}>${escapeHtml(destination.name)}</option>`).join("")}
+        ${destinations.map((destination, index) => `<option value="${destination.id}"${destination.id === day.destination_id ? " selected" : ""}>${index + 1}. ${escapeHtml(destination.name)}</option>`).join("")}
       </select></label>
       <label>Отель / жильё<input name="day_${day.id}_lodging_name" value="${escapeHtml(day.lodging_name || "")}"></label>
       <label>Ссылка на жильё<input name="day_${day.id}_lodging_url" type="url" value="${escapeHtml(day.lodging_url || "")}"></label>
@@ -636,6 +636,8 @@ function tripRouteEditor(tripId: number, route: TripRouteData | null, days: Trip
               <label>Комментарий<input name="destination_${destination.id}_notes" value="${escapeHtml(destination.notes || "")}" placeholder="Ночёвка, район, планы…"></label>
             </div>
             <div class="admin-trip-destination__actions">
+              <button type="button" data-move-destination="up" data-destination-id="${destination.id}" aria-label="Переместить город выше"${index === 0 ? " disabled" : ""}>↑</button>
+              <button type="button" data-move-destination="down" data-destination-id="${destination.id}" aria-label="Переместить город ниже"${index === destinations.length - 1 ? " disabled" : ""}>↓</button>
               <button type="button" class="secondary" data-place-destination="${destination.id}">${destination.latitude == null ? "Поставить на карте" : "Переставить"}</button>
               <button type="button" class="danger" data-delete-destination="${destination.id}">×</button>
             </div>
@@ -830,9 +832,21 @@ async function renderTripEditor(options: TripPlannerOptions, tripId: number): Pr
       }
 
       const cityLatLngs: L.LatLngExpression[] = [];
+      const coordinateCounts = new Map<string, number>();
+      const coordinateOccurrences = new Map<string, number>();
+      destinations.forEach((destination) => {
+        if (destination.latitude == null || destination.longitude == null) return;
+        const key = `${destination.latitude}:${destination.longitude}`;
+        coordinateCounts.set(key, (coordinateCounts.get(key) ?? 0) + 1);
+      });
       for (const [index, destination] of destinations.entries()) {
         if (destination.latitude == null || destination.longitude == null) continue;
         const point: L.LatLngExpression = [destination.latitude, destination.longitude];
+        const coordinateKey = `${destination.latitude}:${destination.longitude}`;
+        const occurrence = coordinateOccurrences.get(coordinateKey) ?? 0;
+        const duplicateCount = coordinateCounts.get(coordinateKey) ?? 1;
+        coordinateOccurrences.set(coordinateKey, occurrence + 1);
+        const horizontalOffset = duplicateCount > 1 ? (occurrence - (duplicateCount - 1) / 2) * 24 : 0;
         cityLatLngs.push(point);
         const marker = L.marker(point, {
           draggable: true,
@@ -841,9 +855,9 @@ async function renderTripEditor(options: TripPlannerOptions, tripId: number): Pr
             className: "admin-trip-city-marker-wrap",
             html: `<span class="admin-trip-city-marker"><b>${index + 1}</b></span>`,
             iconSize: [38, 38],
-            iconAnchor: [19, 19],
+            iconAnchor: [19 - horizontalOffset, 19],
           }),
-        }).bindTooltip(`<strong>${escapeHtml(destination.name)}</strong><br><small>Перетащите, чтобы уточнить точку</small>`).addTo(cityLayer);
+        }).bindTooltip(`<strong>${index + 1}. ${escapeHtml(destination.name)}</strong><br><small>Перетащите, чтобы уточнить точку</small>`).addTo(cityLayer);
         cityMarkers.set(destination.id, marker);
         marker.on("dragend", () => {
           const point = marker.getLatLng();
@@ -1055,6 +1069,30 @@ async function renderTripEditor(options: TripPlannerOptions, tripId: number): Pr
       }
     }
 
+    async function reconcileRouteLegs(orderedDestinations: TripDestination[]): Promise<void> {
+      const desiredPairs = orderedDestinations.slice(0, -1).map((from, index) => ({
+        from,
+        to: orderedDestinations[index + 1],
+      }));
+      const desiredKeys = new Set(desiredPairs.map(({ from, to }) => `${from.id}:${to.id}`));
+      const existingKeys = new Set(legs.map((leg) => `${leg.from_destination_id}:${leg.to_destination_id}`));
+      for (const leg of legs) {
+        if (!desiredKeys.has(`${leg.from_destination_id}:${leg.to_destination_id}`)) {
+          await deleteRow(options, "trip_legs", leg.id);
+        }
+      }
+      for (const { from, to } of desiredPairs) {
+        if (!existingKeys.has(`${from.id}:${to.id}`)) {
+          await insertRow<TripLeg>(options, "trip_legs", {
+            trip_id: trip.id,
+            from_destination_id: from.id,
+            to_destination_id: to.id,
+            mode: "train",
+          });
+        }
+      }
+    }
+
     async function saveDestinationCoordinates(destination: TripDestination, latitude: number, longitude: number): Promise<void> {
       await persistChangedForm();
       if (activeTripMap) {
@@ -1165,20 +1203,56 @@ async function renderTripEditor(options: TripPlannerOptions, tripId: number): Pr
       const addBooking = target.closest<HTMLButtonElement>("[data-add-booking]");
       const deleteBooking = target.closest<HTMLButtonElement>("[data-delete-booking]");
       const addDestination = target.closest<HTMLButtonElement>("[data-add-destination]");
+      const moveDestination = target.closest<HTMLButtonElement>("[data-move-destination]");
       const placeDestination = target.closest<HTMLButtonElement>("[data-place-destination]");
       const deleteDestination = target.closest<HTMLButtonElement>("[data-delete-destination]");
       try {
-        if (addDestination) {
+        if (moveDestination) {
+          if (!tripRoute) throw new Error("Сначала выполните актуальный scripts/trip_planner_setup.sql в Supabase.");
+          const destinationId = Number(moveDestination.dataset.destinationId);
+          const index = destinations.findIndex((item) => item.id === destinationId);
+          const otherIndex = moveDestination.dataset.moveDestination === "up" ? index - 1 : index + 1;
+          const current = destinations[index];
+          const other = destinations[otherIndex];
+          if (!current || !other) return;
+          const reordered = [...destinations];
+          [reordered[index], reordered[otherIndex]] = [reordered[otherIndex], reordered[index]];
+          const desiredKeys = new Set(reordered.slice(0, -1).map((from, routeIndex) => `${from.id}:${reordered[routeIndex + 1].id}`));
+          const data = new FormData(form);
+          const removesFilledLeg = legs.some((leg) => !desiredKeys.has(`${leg.from_destination_id}:${leg.to_destination_id}`) && (
+            String(data.get(`leg_${leg.id}_details`) || leg.details || "").trim()
+            || String(data.get(`leg_${leg.id}_departure_time`) || leg.departure_time || "").trim()
+            || String(data.get(`leg_${leg.id}_arrival_time`) || leg.arrival_time || "").trim()
+            || String(data.get(`leg_${leg.id}_booking_url`) || leg.booking_url || "").trim()
+            || data.get(`leg_${leg.id}_booked`) === "on"
+            || data.get(`leg_${leg.id}_paid`) === "on"
+          ));
+          if (removesFilledLeg && !window.confirm("У изменившихся участков транспорта есть заполненные данные. Переставить город и пересоздать эти участки?")) return;
+          await persistChangedForm();
+          const temporaryPosition = Math.max(0, ...destinations.map((item) => item.position)) + 1_000;
+          await updateRow(options, "trip_destinations", current.id, { position: temporaryPosition });
+          await updateRow(options, "trip_destinations", other.id, { position: current.position });
+          await updateRow(options, "trip_destinations", current.id, { position: other.position });
+          await reconcileRouteLegs(reordered);
+          savedTripRouteOpen = { tripId: trip.id, open: true };
+          await renderTripEditor(options, trip.id);
+        } else if (addDestination) {
           if (!tripRoute) throw new Error("Сначала выполните актуальный scripts/trip_planner_setup.sql в Supabase.");
           await persistChangedForm();
           const data = new FormData(form);
           const name = String(data.get("new_destination_name") || "").trim();
           if (!name) throw new Error("Введите название города.");
           const previous = destinations.at(-1);
+          const normalizedName = name.normalize("NFKC").toLocaleLowerCase("ja");
+          const repeated = destinations.find((item) =>
+            String(data.get(`destination_${item.id}_name`) || item.name).trim().normalize("NFKC").toLocaleLowerCase("ja") === normalizedName
+          );
           const destination = await insertRow<TripDestination>(options, "trip_destinations", {
             trip_id: trip.id,
             name,
             position: destinations.length + 1,
+            latitude: repeated?.latitude ?? null,
+            longitude: repeated?.longitude ?? null,
           });
           if (previous) {
             await insertRow<TripLeg>(options, "trip_legs", {
