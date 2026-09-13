@@ -53,6 +53,7 @@ type TripBooking = {
 
 type TripDestination = {
   id: number;
+  trip_day_id: number | null;
   name: string;
   position: number;
   latitude: number | null;
@@ -80,6 +81,7 @@ type TripRouteData = {
   supportsTimes: boolean;
   supportsLegDays: boolean;
   supportsBookingUrl: boolean;
+  supportsDestinationDays: boolean;
 };
 
 type CitySearchResult = {
@@ -302,18 +304,25 @@ async function getTripRoute(options: TripPlannerOptions, tripId: number): Promis
   let supportsTimes = true;
   let supportsLegDays = true;
   let supportsBookingUrl = true;
-  for (let attempt = 0; attempt < 4; attempt += 1) {
+  let supportsDestinationDays = true;
+  for (let attempt = 0; attempt < 5; attempt += 1) {
     try {
       const legFields = [
         "id", ...(supportsLegDays ? ["trip_day_id"] : []), "from_destination_id", "to_destination_id", "mode", "details",
         ...(supportsTimes ? ["departure_time", "arrival_time"] : []), "booked", "paid", ...(supportsBookingUrl ? ["booking_url"] : []),
       ].join(",");
+      const destinationFields = [
+        "id", ...(supportsDestinationDays ? ["trip_day_id"] : []), "name", "position", "latitude", "longitude", "notes",
+      ].join(",");
       const [destinations, legacyLegs] = await Promise.all([
-        request<TripDestination[]>(options, `trip_destinations?trip_id=eq.${tripId}&select=id,name,position,latitude,longitude,notes&order=position.asc`),
+        request<TripDestination[]>(options, `trip_destinations?trip_id=eq.${tripId}&select=${destinationFields}&order=position.asc`),
         request<TripLeg[]>(options, `trip_legs?trip_id=eq.${tripId}&select=${legFields}`),
       ]);
       return {
-        destinations,
+        destinations: destinations.map((destination) => ({
+          ...destination,
+          trip_day_id: supportsDestinationDays ? destination.trip_day_id : null,
+        })),
         legs: legacyLegs.map((leg) => ({
           ...leg,
           trip_day_id: supportsLegDays ? leg.trip_day_id : null,
@@ -324,11 +333,14 @@ async function getTripRoute(options: TripPlannerOptions, tripId: number): Promis
         supportsTimes,
         supportsLegDays,
         supportsBookingUrl,
+        supportsDestinationDays,
       };
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       if (supportsTimes && (message.includes("departure_time") || message.includes("arrival_time"))) {
         supportsTimes = false;
+      } else if (supportsDestinationDays && message.includes("trip_day_id") && message.includes("trip_destinations")) {
+        supportsDestinationDays = false;
       } else if (supportsLegDays && message.includes("trip_day_id")) {
         supportsLegDays = false;
       } else if (supportsBookingUrl && message.includes("booking_url")) {
@@ -544,7 +556,7 @@ function dayEditor(
     </header>
     <div class="admin-form-grid">
       <label>Дата<input name="day_${day.id}_date" type="date" value="${escapeHtml(day.date || "")}"></label>
-      <label>Город ночёвки / база<select name="day_${day.id}_destination_id"${supportsDayDestinations ? "" : " disabled"}>
+      <label>Город ночёвки / база<select name="day_${day.id}_destination_id" data-day-base="${day.id}"${supportsDayDestinations ? "" : " disabled"}>
         <option value="">Не выбран</option>
         ${destinations.map((destination, index) => `<option value="${destination.id}"${destination.id === day.destination_id ? " selected" : ""}>${index + 1}. ${escapeHtml(destination.name)}</option>`).join("")}
       </select></label>
@@ -624,6 +636,7 @@ function tripRouteEditor(tripId: number, route: TripRouteData | null, days: Trip
     ${route.supportsTimes ? "" : `<p class="admin-trip-route-setup">Повторно выполните актуальный SQL, чтобы включить время отправления и прибытия.</p>`}
     ${route.supportsLegDays ? "" : `<p class="admin-trip-route-setup">Повторно выполните актуальный SQL, чтобы назначать транспорт определённому дню.</p>`}
     ${route.supportsBookingUrl ? "" : `<p class="admin-trip-route-setup">Повторно выполните актуальный SQL, чтобы сохранять ссылки на билеты.</p>`}
+    ${route.supportsDestinationDays ? "" : `<p class="admin-trip-route-setup">Повторно выполните актуальный SQL, чтобы назначать дни городам.</p>`}
     <div class="admin-trip-destinations">
       ${destinations.length ? destinations.map((destination, index) => {
         const next = destinations[index + 1];
@@ -633,6 +646,10 @@ function tripRouteEditor(tripId: number, route: TripRouteData | null, days: Trip
             <span class="admin-trip-destination__position">${index + 1}</span>
             <div class="admin-trip-destination__fields">
               <label>Город<input name="destination_${destination.id}_name" required value="${escapeHtml(destination.name)}"></label>
+              <label>День посещения<select name="destination_${destination.id}_trip_day_id" data-destination-day="${destination.id}" data-current-day="${destination.trip_day_id ?? ""}"${route.supportsDestinationDays ? "" : " disabled"}>
+                <option value="">Не назначен</option>
+                ${days.map((day) => `<option value="${day.id}"${destination.trip_day_id === day.id ? " selected" : ""}>День ${day.day_number}${day.date ? ` · ${escapeHtml(day.date)}` : ""}</option>`).join("")}
+              </select></label>
               <label>Комментарий<input name="destination_${destination.id}_notes" value="${escapeHtml(destination.notes || "")}" placeholder="Ночёвка, район, планы…"></label>
             </div>
             <div class="admin-trip-destination__actions">
@@ -644,7 +661,7 @@ function tripRouteEditor(tripId: number, route: TripRouteData | null, days: Trip
           </article>
           ${leg ? `<article class="admin-trip-leg" data-leg-id="${leg.id}">
             <span class="admin-trip-leg__arrow">↓</span>
-            <label>День<select name="leg_${leg.id}_trip_day_id"${route.supportsLegDays ? "" : " disabled"}>
+            <label>День переезда<select name="leg_${leg.id}_trip_day_id"${route.supportsLegDays ? "" : " disabled"}>
               <option value="">Не назначен</option>
               ${days.map((day) => `<option value="${day.id}"${leg.trip_day_id === day.id ? " selected" : ""}>День ${day.day_number}${day.date ? ` · ${escapeHtml(day.date)}` : ""}</option>`).join("")}
             </select></label>
@@ -931,6 +948,7 @@ async function renderTripEditor(options: TripPlannerOptions, tripId: number): Pr
           const dayId = Number(mapDaySelect?.value);
           const destinationId = trip.trip_days.find((day) => day.id === dayId)?.destination_id;
           const relevantDestinationIds = new Set<number>(destinationId ? [destinationId] : []);
+          destinations.filter((destination) => destination.trip_day_id === dayId).forEach((destination) => relevantDestinationIds.add(destination.id));
           legs.filter((leg) => leg.trip_day_id === dayId).forEach((leg) => {
             relevantDestinationIds.add(leg.from_destination_id);
             relevantDestinationIds.add(leg.to_destination_id);
@@ -954,6 +972,7 @@ async function renderTripEditor(options: TripPlannerOptions, tripId: number): Pr
           const dayId = Number(mapDaySelect?.value);
           const destinationId = trip.trip_days.find((day) => day.id === dayId)?.destination_id;
           const relevantDestinationIds = new Set<number>(destinationId ? [destinationId] : []);
+          destinations.filter((destination) => destination.trip_day_id === dayId).forEach((destination) => relevantDestinationIds.add(destination.id));
           legs.filter((leg) => leg.trip_day_id === dayId).forEach((leg) => {
             relevantDestinationIds.add(leg.from_destination_id);
             relevantDestinationIds.add(leg.to_destination_id);
@@ -1043,10 +1062,14 @@ async function renderTripEditor(options: TripPlannerOptions, tripId: number): Pr
       for (const destination of destinations) {
         const name = String(data.get(`destination_${destination.id}_name`) || "").trim();
         if (!name) throw new Error("Укажите название города.");
-        await updateRowIfChanged(options, "trip_destinations", destination.id, destination, {
+        const destinationValues: Record<string, unknown> = {
           name,
           notes: String(data.get(`destination_${destination.id}_notes`) || "").trim() || null,
-        });
+        };
+        if (tripRoute?.supportsDestinationDays) {
+          destinationValues.trip_day_id = Number(data.get(`destination_${destination.id}_trip_day_id`)) || null;
+        }
+        await updateRowIfChanged(options, "trip_destinations", destination.id, destination, destinationValues);
       }
       for (const leg of legs) {
         const values: Record<string, unknown> = {
@@ -1085,12 +1108,42 @@ async function renderTripEditor(options: TripPlannerOptions, tripId: number): Pr
         if (!existingKeys.has(`${from.id}:${to.id}`)) {
           await insertRow<TripLeg>(options, "trip_legs", {
             trip_id: trip.id,
+            ...(tripRoute?.supportsLegDays ? { trip_day_id: to.trip_day_id ?? from.trip_day_id ?? null } : {}),
             from_destination_id: from.id,
             to_destination_id: to.id,
             mode: "train",
           });
         }
       }
+    }
+
+    function routeChangeRemovesFilledLeg(orderedDestinations: TripDestination[]): boolean {
+      const desiredKeys = new Set(orderedDestinations.slice(0, -1).map((from, index) => `${from.id}:${orderedDestinations[index + 1].id}`));
+      const data = new FormData(form);
+      return legs.some((leg) => !desiredKeys.has(`${leg.from_destination_id}:${leg.to_destination_id}`) && (
+        String(data.get(`leg_${leg.id}_details`) || leg.details || "").trim()
+        || String(data.get(`leg_${leg.id}_departure_time`) || leg.departure_time || "").trim()
+        || String(data.get(`leg_${leg.id}_arrival_time`) || leg.arrival_time || "").trim()
+        || String(data.get(`leg_${leg.id}_booking_url`) || leg.booking_url || "").trim()
+        || data.get(`leg_${leg.id}_booked`) === "on"
+        || data.get(`leg_${leg.id}_paid`) === "on"
+      ));
+    }
+
+    async function saveDestinationOrder(orderedDestinations: TripDestination[]): Promise<void> {
+      const changed = orderedDestinations.filter((destination, index) => destination.position !== index + 1);
+      if (changed.length) {
+        const temporaryStart = Math.max(0, ...destinations.map((item) => item.position)) + 1_000;
+        for (const [index, destination] of changed.entries()) {
+          await updateRow(options, "trip_destinations", destination.id, { position: temporaryStart + index });
+        }
+        for (const destination of changed) {
+          await updateRow(options, "trip_destinations", destination.id, { position: orderedDestinations.indexOf(destination) + 1 });
+        }
+        await reconcileRouteLegs(orderedDestinations);
+      }
+      savedTripRouteOpen = { tripId: trip.id, open: true };
+      await renderTripEditor(options, trip.id);
     }
 
     async function saveDestinationCoordinates(destination: TripDestination, latitude: number, longitude: number): Promise<void> {
@@ -1165,6 +1218,52 @@ async function renderTripEditor(options: TripPlannerOptions, tripId: number): Pr
     });
 
     form.addEventListener("change", async (event) => {
+      const target = event.target as HTMLElement;
+      const baseSelect = target.closest<HTMLSelectElement>("[data-day-base]");
+      if (baseSelect && tripRoute?.supportsDestinationDays) {
+        const destinationId = Number(baseSelect.value);
+        const destinationDaySelect = destinationId
+          ? form.querySelector<HTMLSelectElement>(`[data-destination-day="${destinationId}"]`)
+          : null;
+        if (destinationDaySelect && destinationDaySelect.value !== baseSelect.dataset.dayBase) {
+          destinationDaySelect.value = baseSelect.dataset.dayBase ?? "";
+          destinationDaySelect.dispatchEvent(new Event("change", { bubbles: true }));
+        }
+        return;
+      }
+      const select = target.closest<HTMLSelectElement>("[data-destination-day]");
+      if (!select || !tripRoute?.supportsDestinationDays) return;
+      select.disabled = true;
+      if (error) error.textContent = "";
+      try {
+        const data = new FormData(form);
+        const dayOrder = new Map(trip.trip_days.map((day) => [day.id, day.day_number]));
+        const reordered = destinations.map((destination) => ({
+          ...destination,
+          trip_day_id: Number(data.get(`destination_${destination.id}_trip_day_id`)) || null,
+        })).sort((left, right) => {
+          const leftRank = left.trip_day_id ? dayOrder.get(left.trip_day_id) ?? Number.MAX_SAFE_INTEGER : Number.MAX_SAFE_INTEGER;
+          const rightRank = right.trip_day_id ? dayOrder.get(right.trip_day_id) ?? Number.MAX_SAFE_INTEGER : Number.MAX_SAFE_INTEGER;
+          return leftRank - rightRank || left.position - right.position;
+        });
+        if (routeChangeRemovesFilledLeg(reordered) && !window.confirm("Из-за нового порядка изменятся заполненные участки транспорта. Назначить день городу и пересоздать эти участки?")) {
+          select.value = select.dataset.currentDay ?? "";
+          select.disabled = false;
+          return;
+        }
+        await persistChangedForm();
+        await saveDestinationOrder(reordered);
+      } catch (destinationDayError) {
+        select.value = select.dataset.currentDay ?? "";
+        select.disabled = false;
+        if (error) {
+          error.textContent = setupMessage(destinationDayError);
+          error.scrollIntoView({ behavior: "smooth", block: "center" });
+        }
+      }
+    });
+
+    form.addEventListener("change", async (event) => {
       const select = (event.target as HTMLElement).closest<HTMLSelectElement>("[data-transfer-stop]");
       if (!select) return;
       const stopId = Number(select.dataset.transferStop);
@@ -1217,25 +1316,9 @@ async function renderTripEditor(options: TripPlannerOptions, tripId: number): Pr
           if (!current || !other) return;
           const reordered = [...destinations];
           [reordered[index], reordered[otherIndex]] = [reordered[otherIndex], reordered[index]];
-          const desiredKeys = new Set(reordered.slice(0, -1).map((from, routeIndex) => `${from.id}:${reordered[routeIndex + 1].id}`));
-          const data = new FormData(form);
-          const removesFilledLeg = legs.some((leg) => !desiredKeys.has(`${leg.from_destination_id}:${leg.to_destination_id}`) && (
-            String(data.get(`leg_${leg.id}_details`) || leg.details || "").trim()
-            || String(data.get(`leg_${leg.id}_departure_time`) || leg.departure_time || "").trim()
-            || String(data.get(`leg_${leg.id}_arrival_time`) || leg.arrival_time || "").trim()
-            || String(data.get(`leg_${leg.id}_booking_url`) || leg.booking_url || "").trim()
-            || data.get(`leg_${leg.id}_booked`) === "on"
-            || data.get(`leg_${leg.id}_paid`) === "on"
-          ));
-          if (removesFilledLeg && !window.confirm("У изменившихся участков транспорта есть заполненные данные. Переставить город и пересоздать эти участки?")) return;
+          if (routeChangeRemovesFilledLeg(reordered) && !window.confirm("У изменившихся участков транспорта есть заполненные данные. Переставить город и пересоздать эти участки?")) return;
           await persistChangedForm();
-          const temporaryPosition = Math.max(0, ...destinations.map((item) => item.position)) + 1_000;
-          await updateRow(options, "trip_destinations", current.id, { position: temporaryPosition });
-          await updateRow(options, "trip_destinations", other.id, { position: current.position });
-          await updateRow(options, "trip_destinations", current.id, { position: other.position });
-          await reconcileRouteLegs(reordered);
-          savedTripRouteOpen = { tripId: trip.id, open: true };
-          await renderTripEditor(options, trip.id);
+          await saveDestinationOrder(reordered);
         } else if (addDestination) {
           if (!tripRoute) throw new Error("Сначала выполните актуальный scripts/trip_planner_setup.sql в Supabase.");
           await persistChangedForm();

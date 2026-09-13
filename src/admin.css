@@ -121,7 +121,7 @@ button, input, select { font: inherit; }
 .admin-trip-destinations { display: grid; gap: 0; }
 .admin-trip-destination { display: grid; grid-template-columns: 34px minmax(0, 1fr) auto; gap: 12px; align-items: center; padding: 12px; border: 1px solid #c8c3b8; background: #fff; }
 .admin-trip-destination__position { display: grid; width: 30px; height: 30px; place-items: center; border-radius: 50%; background: #245e82; color: #fff; font-size: 12px; font-weight: 800; }
-.admin-trip-destination__fields { display: grid; grid-template-columns: minmax(180px, .7fr) minmax(240px, 1fr); gap: 10px; }
+.admin-trip-destination__fields { display: grid; grid-template-columns: minmax(170px, .7fr) minmax(145px, .55fr) minmax(220px, 1fr); gap: 10px; }
 .admin-trip-destination__actions { display: flex; gap: 6px; }
 .admin-trip-destination__actions button { white-space: nowrap; }
 .admin-trip-leg { display: grid; grid-template-columns: 34px 140px 115px minmax(155px, 1fr) minmax(155px, .75fr) 100px 100px auto auto; gap: 8px; align-items: end; margin: 0 18px; padding: 10px 12px; border-right: 1px solid #c8c3b8; border-left: 1px solid #c8c3b8; background: #e9eef0; }
