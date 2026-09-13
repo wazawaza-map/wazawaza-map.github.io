@@ -1240,13 +1240,33 @@ async function renderTripEditor(options: TripPlannerOptions, tripId: number): Pr
       try {
         const data = new FormData(form);
         const dayOrder = new Map(trip.trip_days.map((day) => [day.id, day.day_number]));
+        const baseDayByDestination = new Map(
+          trip.trip_days.flatMap((day) => day.destination_id ? [[day.destination_id, day.id] as const] : []),
+        );
+        const incomingDayByDestination = new Map(legs.flatMap((leg) => leg.trip_day_id ? [[leg.to_destination_id, leg.trip_day_id] as const] : []));
+        const outgoingDayByDestination = new Map(legs.flatMap((leg) => leg.trip_day_id ? [[leg.from_destination_id, leg.trip_day_id] as const] : []));
+        const nextDestination = new Map(legs.map((leg) => [leg.from_destination_id, leg.to_destination_id]));
+        const hasIncoming = new Set(legs.map((leg) => leg.to_destination_id));
+        const routeSequence: number[] = [];
+        const appendChain = (startId: number): void => {
+          let currentId: number | undefined = startId;
+          while (currentId && !routeSequence.includes(currentId)) {
+            routeSequence.push(currentId);
+            currentId = nextDestination.get(currentId);
+          }
+        };
+        destinations.filter((destination) => !hasIncoming.has(destination.id)).forEach((destination) => appendChain(destination.id));
+        destinations.forEach((destination) => appendChain(destination.id));
+        const routeRank = new Map(routeSequence.map((destinationId, index) => [destinationId, index]));
         const reordered = destinations.map((destination) => ({
           ...destination,
           trip_day_id: Number(data.get(`destination_${destination.id}_trip_day_id`)) || null,
         })).sort((left, right) => {
-          const leftRank = left.trip_day_id ? dayOrder.get(left.trip_day_id) ?? Number.MAX_SAFE_INTEGER : Number.MAX_SAFE_INTEGER;
-          const rightRank = right.trip_day_id ? dayOrder.get(right.trip_day_id) ?? Number.MAX_SAFE_INTEGER : Number.MAX_SAFE_INTEGER;
-          return leftRank - rightRank || left.position - right.position;
+          const leftDayId = left.trip_day_id ?? baseDayByDestination.get(left.id) ?? incomingDayByDestination.get(left.id) ?? outgoingDayByDestination.get(left.id);
+          const rightDayId = right.trip_day_id ?? baseDayByDestination.get(right.id) ?? incomingDayByDestination.get(right.id) ?? outgoingDayByDestination.get(right.id);
+          const leftDayRank = leftDayId ? dayOrder.get(leftDayId) ?? Number.MAX_SAFE_INTEGER : Number.MAX_SAFE_INTEGER;
+          const rightDayRank = rightDayId ? dayOrder.get(rightDayId) ?? Number.MAX_SAFE_INTEGER : Number.MAX_SAFE_INTEGER;
+          return leftDayRank - rightDayRank || (routeRank.get(left.id) ?? left.position) - (routeRank.get(right.id) ?? right.position);
         });
         if (routeChangeRemovesFilledLeg(reordered) && !window.confirm("Из-за нового порядка изменятся заполненные участки транспорта. Назначить день городу и пересоздать эти участки?")) {
           select.value = select.dataset.currentDay ?? "";

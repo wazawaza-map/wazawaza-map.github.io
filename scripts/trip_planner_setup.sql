@@ -108,33 +108,6 @@ where destination.trip_day_id is null
   and day.destination_id = destination.id
   and day.trip_id = destination.trip_id;
 
-with ranked as (
-  select
-    destination.id,
-    (max(destination.position) over (partition by destination.trip_id) + 1000
-      + row_number() over (
-          partition by destination.trip_id
-          order by day.day_number nulls last, destination.position, destination.id
-        ))::integer as temporary_position
-  from public.trip_destinations as destination
-  left join public.trip_days as day on day.id = destination.trip_day_id
-)
-update public.trip_destinations as destination
-set position = ranked.temporary_position
-from ranked
-where destination.id = ranked.id;
-
-with ranked as (
-  select
-    destination.id,
-    (row_number() over (partition by destination.trip_id order by destination.position, destination.id))::integer as final_position
-  from public.trip_destinations as destination
-)
-update public.trip_destinations as destination
-set position = ranked.final_position
-from ranked
-where destination.id = ranked.id;
-
 alter table public.trips enable row level security;
 alter table public.trip_days enable row level security;
 alter table public.trip_stops enable row level security;
