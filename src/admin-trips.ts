@@ -1072,8 +1072,10 @@ async function renderTripEditor(options: TripPlannerOptions, tripId: number): Pr
         await updateRowIfChanged(options, "trip_destinations", destination.id, destination, destinationValues);
       }
       for (const leg of legs) {
+        const mode = data.get(`leg_${leg.id}_mode`);
+        if (mode === null) continue;
         const values: Record<string, unknown> = {
-          mode: data.get(`leg_${leg.id}_mode`),
+          mode,
           details: String(data.get(`leg_${leg.id}_details`) || "").trim() || null,
           booked: data.get(`leg_${leg.id}_booked`) === "on",
           paid: data.get(`leg_${leg.id}_paid`) === "on",
@@ -1140,8 +1142,8 @@ async function renderTripEditor(options: TripPlannerOptions, tripId: number): Pr
         for (const destination of changed) {
           await updateRow(options, "trip_destinations", destination.id, { position: orderedDestinations.indexOf(destination) + 1 });
         }
-        await reconcileRouteLegs(orderedDestinations);
       }
+      await reconcileRouteLegs(orderedDestinations);
       savedTripRouteOpen = { tripId: trip.id, open: true };
       await renderTripEditor(options, trip.id);
     }
