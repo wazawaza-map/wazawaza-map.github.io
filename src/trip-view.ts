@@ -87,6 +87,12 @@ function overnightEditor(day: TripDay, destinations: TripDestination[], supports
   </section>`;
 }
 
+function emptyFinalOvernight(day: TripDay): string {
+  // Keep its day/base association in the form without displaying an unnecessary
+  // hotel after the final destination (usually home).
+  return `<input type="hidden" name="day_${day.id}_destination_id" value="${day.destination_id ?? ""}">`;
+}
+
 function selectOptions<T extends string>(labels: Record<T, string>, selected: T): string {
   return Object.entries(labels).map(([value, label]) =>
     `<option value="${value}"${value === selected ? " selected" : ""}>${escapeHtml(String(label))}</option>`
@@ -162,7 +168,9 @@ function tripRouteEditor(tripId: number, route: TripRouteData | null, days: Trip
               <button type="button" class="danger" data-delete-destination="${destination.id}">×</button>
             </div>
           </article>
-          ${nightsFor(destination).map(day => overnightEditor(day, destinations, supportsDayDestinations, supportsInlineBookings)).join("")}
+          ${nightsFor(destination).map(day => !next && !day.overnight_city && !day.lodging_name && !day.lodging_url && !day.lodging_status
+            ? emptyFinalOvernight(day)
+            : overnightEditor(day, destinations, supportsDayDestinations, supportsInlineBookings)).join("")}
           ${leg ? `<article class="admin-trip-leg" data-leg-id="${leg.id}">
             <span class="admin-trip-leg__arrow">↓</span>
             <label>День переезда<select name="leg_${leg.id}_trip_day_id"${route.supportsLegDays ? "" : " disabled"}>
