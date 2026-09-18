@@ -3,6 +3,7 @@ import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import "./leaflet-icons";
 import { CATEGORIES, categoryLabel, normalizeCategory } from "./categories";
+import { TAGS, knownTagIds, mergePlaceTags } from "./tags";
 import { primaryNav, renderTripsDashboard } from "./admin-trips";
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL as string | undefined;
@@ -32,6 +33,7 @@ type AdminPlace = {
   google_maps_url: string | null;
   website_url: string | null;
   category: string | null;
+  tags: string[];
   visited: boolean;
   visited_at: string | null;
   place_translations: Array<{
@@ -137,7 +139,7 @@ async function getPlaces(session: AdminSession): Promise<AdminPlace[]> {
   const fields = [
     "id", "legacy_id", "slug", "prefecture", "municipality", "latitude",
     "longitude", "status", "updated_at", "google_maps_url",
-    "website_url", "category", "visited_at",
+    "website_url", "category", "tags", "visited_at",
   ];
   const translations = "place_translations(locale,name,area,summary,interest,nearest_station,access_note)";
   async function fetchPlaces(includeVisited: boolean): Promise<AdminPlace[]> {
@@ -548,6 +550,11 @@ function openPlaceEditor(
           ${field("Муниципалитет", "municipality", place.municipality ?? "")}
           ${categorySelect(place.category)}
         </div>
+        <fieldset class="admin-place-tags">
+          <legend>Теги</legend>
+          ${TAGS.map(tag => `<label><input type="checkbox" name="tags" value="${tag.id}"${knownTagIds(place.tags).includes(tag.id) ? " checked" : ""}> ${escapeHtml(tag.ru)} / ${escapeHtml(tag.ja)} / ${escapeHtml(tag.en)}</label>`).join("")}
+          <p class="admin-editor__hint">Несколько тегов можно сочетать. Старые свободные теги сохраняются отдельно.</p>
+        </fieldset>
         <section class="admin-translations">
           <div class="admin-translation-tabs" role="tablist">
             ${(["ru", "ja", "en"] as const).map((locale, index) => `<button type="button" role="tab" data-translation-tab="${locale}" aria-selected="${index === 0}">${locale.toUpperCase()}${place.place_translations.some((item) => item.locale === locale) ? " ✓" : ""}</button>`).join("")}
@@ -721,6 +728,7 @@ function openPlaceEditor(
         prefecture: required(data, "prefecture"),
         municipality: optional(data, "municipality"),
         category: normalizeCategory(required(data, "category")),
+        tags: mergePlaceTags(place.tags ?? [], data.getAll("tags").map(String)),
         google_maps_url: optionalUrl(data, "google_maps_url"),
         website_url: optionalUrl(data, "website_url"),
         latitude,

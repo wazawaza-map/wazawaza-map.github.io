@@ -5,184 +5,163 @@ import type { Place } from "./types";
 import { visitedLabel } from "./visited";
 import type { AppLocale } from "./categories";
 import { uiCopy } from "./i18n";
+import { escapeHtml } from "./html";
+import { CLUSTER_MAX_ZOOM, createPlaceIndex } from "./place-index";
 
 export function createPlacesMap(
   container: HTMLElement,
   places: Place[],
   onSelectPlace?: (place: Place) => void,
   onViewportPlacesChange?: (places: Place[]) => void,
-  locale: AppLocale = "ru"
+  locale: AppLocale = "ru",
+  initialPlaces = places,
 ) {
   const copy = uiCopy(locale);
   const map = L.map(container, {
-    center: [36.2, 138.2],
-    zoom: 5,
-    minZoom: 4,
+    center: [36.2, 138.2], zoom: 5, minZoom: 4, maxZoom: 19,
+    worldCopyJump: true,
   });
-
   L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-    maxZoom: 19,
-    attribution: "&copy; OpenStreetMap contributors",
+    maxZoom: 19, attribution: "&copy; OpenStreetMap contributors",
   }).addTo(map);
 
-  const markers = new Map<number, L.Marker>();
-  let displayedPlaceIds = new Set(places.map((place) => place.id));
-  let selectedPlaceId: number | null = null;
+  const byId = new Map(places.map((place) => [place.id, place]));
+  const order = new Map(places.map((place, index) => [place.id, index]));
+  let displayedPlaces = initialPlaces;
+  let index = createPlaceIndex(displayedPlaces);
+  const markers = new Map<string, L.Marker>();
+  let selectedPlace: Place | null = null;
+  let selectedMarker: L.Marker | undefined;
 
-  function updateMarkerSelection(): void {
-    for (const [placeId, marker] of markers) {
-      const selected = placeId === selectedPlaceId;
+  function placeMarker(place: Place): L.Marker {
+    const translation = place.place_translations[0];
+    const name = translation?.name ?? copy.unnamed;
+    const marker = L.marker([place.latitude, place.longitude], { title: name, alt: name });
+    // Popup content is only built if the marker is actually opened.
+    marker.bindPopup(() => `
+      <strong>${escapeHtml(name)}</strong>
+      ${translation?.area ? `<br><span>${escapeHtml(translation.area)}</span>` : ""}
+      ${place.visited || place.visited_at ? `<br><span class="visited-popup">${escapeHtml(visitedLabel(place.visited_at, locale))}</span>` : ""}
+    `);
+    marker.on("add", () => {
+      marker.getElement()?.classList.toggle("is-visited-marker", Boolean(place.visited || place.visited_at));
+    });
+    marker.on("click", () => {
+      onSelectPlace?.(place);
+      selectedMarker?.openPopup();
+    });
+    return marker;
+  }
 
-      marker.getElement()?.classList.toggle(
-        "is-selected-marker",
-        selected
-      );
-      marker.setZIndexOffset(selected ? 1000 : 0);
+  function refreshMarkers(): void {
+    const bounds = map.getBounds().pad(0.15);
+    const features = index.getClusters(
+      [bounds.getWest(), bounds.getSouth(), bounds.getEast(), bounds.getNorth()],
+      Math.floor(map.getZoom()),
+    );
+    const keep = new Set<string>();
+    for (const feature of features) {
+      const props = feature.properties;
+      const clustered = "cluster" in props && props.cluster;
+      if (!clustered && props.placeId === selectedPlace?.id) continue;
+      const key = clustered ? `cluster:${props.cluster_id}` : `place:${props.placeId}`;
+      keep.add(key);
+      if (markers.has(key)) continue;
+      let marker: L.Marker;
+      if (clustered) {
+        const clusterId = props.cluster_id;
+        const label = copy.clusterLabel(props.point_count);
+        marker = L.marker([feature.geometry.coordinates[1], feature.geometry.coordinates[0]], {
+          title: label,
+          alt: label,
+          icon: L.divIcon({
+            className: "place-cluster",
+            html: `<span>${props.point_count_abbreviated}</span>`,
+            iconSize: [44, 44], iconAnchor: [22, 22],
+          }),
+        });
+        marker.on("click", () => {
+          map.setView(marker.getLatLng(), Math.min(index.getClusterExpansionZoom(clusterId), 19));
+        });
+      } else {
+        const place = byId.get(props.placeId);
+        if (!place) continue;
+        marker = placeMarker(place);
+      }
+      markers.set(key, marker);
+      marker.addTo(map);
+    }
+    for (const [key, marker] of markers) {
+      if (!keep.has(key)) {
+        marker.remove();
+        markers.delete(key);
+      }
     }
   }
 
   function notifyViewportPlaces(): void {
-    const mapSize = map.getSize();
-    const visiblePlaces = places.filter(
-      (place) => {
-        if (!displayedPlaceIds.has(place.id)) return false;
-
-        const point = map.latLngToContainerPoint([
-          place.latitude,
-          place.longitude,
-        ]);
-
-        return (
-          point.x >= -12 &&
-          point.x <= mapSize.x + 12 &&
-          point.y >= 0 &&
-          point.y <= mapSize.y + 41
-        );
-      }
-    );
-
-    onViewportPlacesChange?.(visiblePlaces);
-  }
-
-  map.on("moveend", notifyViewportPlaces);
-
-  for (const place of places) {
-    const translation = place.place_translations[0];
-
-    const marker = L.marker([
-      place.latitude,
-      place.longitude,
-    ]).addTo(map);
-
-    marker.bindPopup(`
-      <strong>${escapeHtml(translation?.name ?? copy.unnamed)}</strong>
-      ${
-        translation?.area
-          ? `<br><span>${escapeHtml(translation.area)}</span>`
-          : ""
-      }
-      ${place.visited || place.visited_at ? `<br><span class="visited-popup">${escapeHtml(visitedLabel(place.visited_at, locale))}</span>` : ""}
-    `);
-
-    if (place.visited || place.visited_at) {
-      marker.getElement()?.classList.add("is-visited-marker");
-      marker.on("add", () => {
-        marker.getElement()?.classList.add("is-visited-marker");
-      });
-    }
-
-    marker.on("click", () => {
-      onSelectPlace?.(place);
+    const size = map.getSize();
+    const northwest = map.containerPointToLatLng([-12, 0]);
+    const southeast = map.containerPointToLatLng([size.x + 12, size.y + 41]);
+    // Query unclustered points for counts/cards, not the cluster centroids.
+    const visible = index.getClusters(
+      [northwest.lng, southeast.lat, southeast.lng, northwest.lat],
+      CLUSTER_MAX_ZOOM + 1,
+    ).flatMap((feature) => {
+      const place = byId.get(feature.properties.placeId);
+      return place ? [place] : [];
     });
-
-    markers.set(place.id, marker);
+    visible.sort((a, b) => order.get(a.id)! - order.get(b.id)!);
+    onViewportPlacesChange?.(visible);
   }
 
-  if (places.length > 0) {
-    const bounds = L.latLngBounds(
-      places.map((place) => [
-        place.latitude,
-        place.longitude,
-      ])
-    );
+  function refresh(): void {
+    refreshMarkers();
+    notifyViewportPlaces();
+  }
+  map.on("moveend resize", refresh);
 
-    map.fitBounds(bounds, {
-      padding: [30, 30],
-      maxZoom: 8,
+  if (initialPlaces.length) {
+    map.fitBounds(L.latLngBounds(initialPlaces.map((place) => [place.latitude, place.longitude])), {
+      padding: [30, 30], maxZoom: 8,
     });
   }
+  refreshMarkers();
 
   return {
     map,
-
     focusPlace(place: Place) {
-      map.setView(
-        [place.latitude, place.longitude],
-        Math.max(map.getZoom(), 10),
-        {
-          animate: true,
-        }
-      );
-
-      markers.get(place.id)?.openPopup();
+      map.setView([place.latitude, place.longitude], Math.max(map.getZoom(), 10), { animate: true });
+      selectedMarker?.openPopup();
     },
-
     selectPlace(place: Place | null) {
-      selectedPlaceId = place?.id ?? null;
-      updateMarkerSelection();
+      if (selectedPlace?.id === place?.id) return;
+      selectedMarker?.remove();
+      selectedMarker = undefined;
+      selectedPlace = place;
+      if (place) {
+        selectedMarker = placeMarker(place).addTo(map);
+        selectedMarker.getElement()?.classList.add("is-selected-marker");
+        selectedMarker.setZIndexOffset(1000);
+      }
+      refreshMarkers();
     },
-
     focusPlaces(placesToFocus: Place[]) {
-      if (placesToFocus.length === 0) return;
-
-      const bounds = L.latLngBounds(
-        placesToFocus.map((place) => [
-          place.latitude,
-          place.longitude,
-        ])
-      );
-
-      map.flyToBounds(bounds, {
-        padding: [30, 30],
-        maxZoom: 9,
+      if (!placesToFocus.length) return;
+      map.flyToBounds(L.latLngBounds(placesToFocus.map((place) => [place.latitude, place.longitude])), {
+        padding: [30, 30], maxZoom: 9,
       });
     },
-
     displayPlaces(placesToDisplay: Place[]) {
-      displayedPlaceIds = new Set(
-        placesToDisplay.map((place) => place.id)
-      );
-
-      for (const [placeId, marker] of markers) {
-        if (displayedPlaceIds.has(placeId)) {
-          if (!map.hasLayer(marker)) {
-            marker.addTo(map);
-          }
-        } else {
-          marker.removeFrom(map);
-        }
+      if (placesToDisplay !== displayedPlaces) {
+        displayedPlaces = placesToDisplay;
+        index = createPlaceIndex(displayedPlaces);
+        // Cluster IDs belong to one immutable index only.
+        for (const marker of markers.values()) marker.remove();
+        markers.clear();
       }
-
-      updateMarkerSelection();
-      notifyViewportPlaces();
+      refresh();
     },
-
-    destroy() {
-      map.remove();
-    },
+    destroy() { map.remove(); },
   };
-}
-
-function escapeHtml(value: string): string {
-  return value.replace(
-    /[&<>"']/g,
-    (character) =>
-      ({
-        "&": "&amp;",
-        "<": "&lt;",
-        ">": "&gt;",
-        '"': "&quot;",
-        "'": "&#039;",
-      })[character]!
-  );
 }

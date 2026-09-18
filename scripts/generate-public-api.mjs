@@ -7,6 +7,7 @@ import {
   RUSSIAN_PREFECTURE_NAMES,
 } from "../src/prefectures.ts";
 import { CATEGORIES } from "../src/categories.ts";
+import { tagLabel } from "../src/tags.ts";
 
 const LOCALES = ["ru", "ja", "en"];
 const OUTPUT_DIR = join(process.cwd(), "public", "api");
@@ -58,6 +59,7 @@ function localizedPlace(place, locale) {
     category: place.category,
     category_name: categoryName(place.category, locale),
     tags: place.tags || [],
+    tag_names: (place.tags || []).map(tag => tagLabel(tag, locale)),
     access_modes: place.access_modes || [],
     visit_minutes: place.visit_minutes,
     indoor_outdoor: place.indoor_outdoor,

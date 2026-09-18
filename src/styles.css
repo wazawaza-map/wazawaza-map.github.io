@@ -916,3 +916,43 @@ h1 {
     animation: none;
   }
 }
+
+.place-cluster {
+  display: grid;
+  place-items: center;
+  border: 3px solid #f1eee6;
+  border-radius: 50%;
+  background: #245e82;
+  color: #fff;
+  box-shadow: 0 2px 8px #0003;
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.place-cluster:focus-visible {
+  outline: 3px solid #d14b36;
+  outline-offset: 3px;
+}
+
+.card-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 16px;
+  padding: 24px 0;
+}
+
+.card-pagination button {
+  padding: 10px 16px;
+  border: 1px solid #262626;
+  border-radius: 4px;
+  background: transparent;
+  cursor: pointer;
+}
+
+.card-pagination button:disabled {
+  opacity: .4;
+  cursor: default;
+}

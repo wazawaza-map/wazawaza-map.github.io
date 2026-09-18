@@ -50,8 +50,28 @@ export async function getPlaces(locale = "ru"): Promise<Place[]> {
 
   async function fetchPlaces(includeVisited: boolean): Promise<Place[]> {
     const select = [...fields, ...(includeVisited ? ["visited"] : []), translations].join(",");
-    const params = new URLSearchParams({ select, order: "prefecture.asc,id.asc" });
-    return supabaseGet<Place[]>(`places?${params.toString()}`);
+    const params = new URLSearchParams({
+      select,
+      order: "prefecture.asc,id.asc",
+      limit: "500",
+    });
+    const places: Place[] = [];
+    const seenIds = new Set<number>();
+    while (true) {
+      params.set("offset", String(places.length));
+      const page = await supabaseGet<Place[]>(`places?${params.toString()}`);
+      if (page.length === 0) return places;
+
+      for (const place of page) {
+        if (seenIds.has(place.id)) {
+          throw new Error("Place pagination returned duplicate records. Reload to try again.");
+        }
+        seenIds.add(place.id);
+        places.push(place);
+      }
+      // A server-side row cap can return fewer than 500 rows even when more
+      // exist. Advance by the actual count and stop only on an empty page.
+    }
   }
 
   let places: Place[];

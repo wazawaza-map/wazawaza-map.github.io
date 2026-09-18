@@ -159,6 +159,13 @@ button, input, select { font: inherit; }
 .admin-booking > button { min-width: 34px; padding: 6px 8px; }
 .admin-add-booking { display: grid; grid-template-columns: minmax(240px, 1fr) auto; gap: 10px; align-items: end; margin-top: 14px; padding-top: 14px; border-top: 1px solid #817c72; }
 .admin-trip-days { display: grid; gap: 18px; }
+.admin-trip-overnight { display: grid; gap: 16px; margin: 0 18px; padding: 16px 22px; border-right: 1px solid #c8c3b8; border-left: 1px solid #c8c3b8; background: #eef0e6; }
+.admin-trip-unassigned-nights { margin-top: 16px; }
+.admin-trip-unassigned-nights .admin-trip-overnight { margin: 0 0 8px; border: 1px solid #c8c3b8; }
+.admin-trip-overnight__heading { display: flex; gap: 12px; align-items: center; }
+.admin-trip-overnight__icon { display: grid; width: 34px; height: 34px; flex: none; place-items: center; border-radius: 50%; background: #245e82; color: #fff; font-size: 24px; }
+.admin-trip-overnight__heading h3 { margin: 2px 0 0; font-family: Georgia, serif; font-size: 20px; font-weight: 500; }
+.admin-trip-overnight .admin-kicker { margin: 0; }
 .admin-trip-day { padding: 22px; border: 1px solid #222; background: #f4f1e9; }
 .admin-trip-day__header { display: flex; justify-content: space-between; gap: 20px; align-items: start; margin-bottom: 18px; padding-bottom: 14px; border-bottom: 1px solid #817c72; }
 .admin-trip-day__header h2 { margin: 0; font-family: Georgia, serif; font-size: 27px; font-weight: 500; }
@@ -212,3 +219,10 @@ button, input, select { font: inherit; }
   .admin-booking__note { grid-column: auto; }
   .admin-booking > button { grid-column: 2; justify-self: start; }
 }
+.admin-place-tags {
+  margin: 1rem 0;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  padding: 1rem;
+}
+.admin-place-tags label { display: block; margin: .6rem 0; }

@@ -1,0 +1,201 @@
+import type { Trip, TripDataOptions, TripDestination, TripLeg, TripRouteData, TripStop } from "./trip-types";
+
+async function request<T>(
+  options: TripDataOptions,
+  path: string,
+  method = "GET",
+  body?: unknown,
+  prefer?: string,
+): Promise<T> {
+  const response = await fetch(`${options.supabaseUrl}/rest/v1/${path}`, {
+    method,
+    headers: {
+      apikey: options.supabaseKey,
+      Authorization: `Bearer ${options.session.access_token}`,
+      "Content-Type": "application/json",
+      ...(prefer ? { Prefer: prefer } : {}),
+    },
+    body: body === undefined ? undefined : JSON.stringify(body),
+  });
+  if (!response.ok) throw new Error(`Supabase ${response.status}: ${await response.text()}`);
+  if (response.status === 204) return undefined as T;
+  const text = await response.text();
+  return (text ? JSON.parse(text) : undefined) as T;
+}
+
+export async function getTrips(options: TripDataOptions, id?: number): Promise<Trip[]> {
+  async function fetchTrips(includeBookings: boolean, includeDayDestinations: boolean, includeInlineBookings: boolean): Promise<Trip[]> {
+    const dayFields = [
+      "id", "day_number", "date", ...(includeDayDestinations ? ["destination_id"] : []),
+      "overnight_city", "lodging_name", "lodging_url", ...(includeInlineBookings ? ["lodging_status"] : []), "notes",
+      `trip_stops(id,place_id,position,custom_name,planned_time,notes${includeInlineBookings ? ",admission_status,admission_url" : ""})`,
+    ].join(",");
+    const baseFields = ["id", "title", "start_date", "end_date", "status", "notes", "updated_at", `trip_days(${dayFields})`];
+    const select = [...baseFields, ...(includeBookings
+      ? ["trip_bookings(id,kind,title,status,date,url,notes,position)"]
+      : [])].join(",");
+    const params = new URLSearchParams({ select, order: "updated_at.desc,id.desc" });
+    if (id) params.set("id", `eq.${id}`);
+    return request<Trip[]>(options, `trips?${params}`);
+  }
+
+  let trips: Trip[] | undefined;
+  let includeBookings = true;
+  let includeDayDestinations = true;
+  let includeInlineBookings = true;
+  for (let attempt = 0; attempt < 4 && !trips; attempt += 1) {
+    try {
+      trips = await fetchTrips(includeBookings, includeDayDestinations, includeInlineBookings);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      if (includeBookings && message.includes("trip_bookings")) {
+        includeBookings = false;
+      } else if (includeDayDestinations && message.includes("destination_id")) {
+        includeDayDestinations = false;
+      } else if (includeInlineBookings && (message.includes("lodging_status") || message.includes("admission_status") || message.includes("admission_url"))) {
+        includeInlineBookings = false;
+      } else {
+        throw error;
+      }
+    }
+  }
+  if (!trips) throw new Error("Не удалось загрузить поездки.");
+  for (const trip of trips) {
+    if (!includeBookings) trip.trip_bookings = [];
+    trip.supports_day_destinations = includeDayDestinations;
+    trip.supports_inline_bookings = includeInlineBookings;
+    trip.trip_days.sort((a, b) => a.day_number - b.day_number);
+    trip.trip_days.forEach((day) => {
+      if (!includeDayDestinations) day.destination_id = null;
+      if (!includeInlineBookings) day.lodging_status = null;
+      day.trip_stops.forEach((stop) => {
+        if (!includeInlineBookings) {
+          stop.admission_status = null;
+          stop.admission_url = null;
+        }
+      });
+      day.trip_stops.sort((a, b) => a.position - b.position);
+    });
+    trip.trip_bookings.sort((a, b) => a.position - b.position);
+  }
+  return trips;
+}
+
+export async function getTripRoute(options: TripDataOptions, tripId: number): Promise<TripRouteData | null> {
+  let supportsTimes = true;
+  let supportsLegDays = true;
+  let supportsBookingUrl = true;
+  let supportsDestinationDays = true;
+  for (let attempt = 0; attempt < 5; attempt += 1) {
+    try {
+      const legFields = [
+        "id", ...(supportsLegDays ? ["trip_day_id"] : []), "from_destination_id", "to_destination_id", "mode", "details",
+        ...(supportsTimes ? ["departure_time", "arrival_time"] : []), "booked", "paid", ...(supportsBookingUrl ? ["booking_url"] : []),
+      ].join(",");
+      const destinationFields = [
+        "id", ...(supportsDestinationDays ? ["trip_day_id"] : []), "name", "position", "latitude", "longitude", "notes",
+      ].join(",");
+      const [destinations, legacyLegs] = await Promise.all([
+        request<TripDestination[]>(options, `trip_destinations?trip_id=eq.${tripId}&select=${destinationFields}&order=position.asc`),
+        request<TripLeg[]>(options, `trip_legs?trip_id=eq.${tripId}&select=${legFields}`),
+      ]);
+      return {
+        destinations: destinations.map((destination) => ({
+          ...destination,
+          trip_day_id: supportsDestinationDays ? destination.trip_day_id : null,
+        })),
+        legs: legacyLegs.map((leg) => ({
+          ...leg,
+          trip_day_id: supportsLegDays ? leg.trip_day_id : null,
+          departure_time: supportsTimes ? leg.departure_time : null,
+          arrival_time: supportsTimes ? leg.arrival_time : null,
+          booking_url: supportsBookingUrl ? leg.booking_url : null,
+        })),
+        supportsTimes,
+        supportsLegDays,
+        supportsBookingUrl,
+        supportsDestinationDays,
+      };
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      if (supportsTimes && (message.includes("departure_time") || message.includes("arrival_time"))) {
+        supportsTimes = false;
+      } else if (supportsDestinationDays && message.includes("trip_day_id") && message.includes("trip_destinations")) {
+        supportsDestinationDays = false;
+      } else if (supportsLegDays && message.includes("trip_day_id")) {
+        supportsLegDays = false;
+      } else if (supportsBookingUrl && message.includes("booking_url")) {
+        supportsBookingUrl = false;
+      } else if (message.includes("trip_destinations") || message.includes("trip_legs") || message.includes("PGRST205")) {
+        return null;
+      } else {
+        throw error;
+      }
+    }
+  }
+  throw new Error("Не удалось загрузить транспортные участки.");
+}
+
+export async function insertRow<T>(options: TripDataOptions, table: string, values: unknown): Promise<T> {
+  const rows = await request<T[]>(options, table, "POST", values, "return=representation");
+  if (!rows[0]) throw new Error(`Supabase не вернул созданную запись из ${table}.`);
+  return rows[0];
+}
+
+export async function updateRow(options: TripDataOptions, table: string, id: number, values: unknown): Promise<void> {
+  await request<void>(options, `${table}?id=eq.${id}`, "PATCH", values, "return=minimal");
+}
+
+function comparableValue(field: string, value: unknown): unknown {
+  if (value === undefined || value === null || value === "") return null;
+  if (field.endsWith("_time") && typeof value === "string") return value.slice(0, 5);
+  return value;
+}
+
+function rowHasChanges(current: object, values: Record<string, unknown>): boolean {
+  const record = current as Record<string, unknown>;
+  return Object.entries(values).some(([field, value]) =>
+    comparableValue(field, record[field]) !== comparableValue(field, value)
+  );
+}
+
+export async function updateRowIfChanged(
+  options: TripDataOptions,
+  table: string,
+  id: number,
+  current: object,
+  values: Record<string, unknown>,
+): Promise<boolean> {
+  if (!rowHasChanges(current, values)) return false;
+  await updateRow(options, table, id, values);
+  return true;
+}
+
+export async function deleteRow(options: TripDataOptions, table: string, id: number): Promise<void> {
+  await request<void>(options, `${table}?id=eq.${id}`, "DELETE", undefined, "return=minimal");
+}
+
+export async function renumberRows(
+  options: TripDataOptions,
+  table: "trip_days" | "trip_stops",
+  rows: Array<{ id: number; position?: number; day_number?: number }>,
+  field: "position" | "day_number",
+): Promise<void> {
+  if (!rows.length) return;
+  const currentMaximum = Math.max(0, ...rows.map((row) => Number(row[field]) || 0));
+  const temporaryStart = currentMaximum + rows.length + 1_000;
+  for (const [index, row] of rows.entries()) {
+    await updateRow(options, table, row.id, { [field]: temporaryStart + index });
+  }
+  for (const [index, row] of rows.entries()) {
+    await updateRow(options, table, row.id, { [field]: index + 1 });
+  }
+}
+
+export async function compactStopPositions(options: TripDataOptions, stops: TripStop[]): Promise<void> {
+  const sorted = [...stops].sort((a, b) => a.position - b.position);
+  for (const [index, stop] of sorted.entries()) {
+    const position = index + 1;
+    if (stop.position !== position) await updateRow(options, "trip_stops", stop.id, { position });
+  }
+}

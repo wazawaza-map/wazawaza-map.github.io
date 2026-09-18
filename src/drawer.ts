@@ -65,7 +65,7 @@ export function openPlaceDrawer(
       ${
         place.tags.length
           ? `<div class="place-drawer__tags">${place.tags
-              .map((tag) => `<span>${escapeHtml(tag)}</span>`)
+              .map((tag) => `<span>${escapeHtml(tagLabel(tag, locale))}</span>`)
               .join("")}</div>`
           : ""
       }
@@ -205,3 +205,4 @@ function escapeHtml(value: string): string {
       })[character]!
   );
 }
+import { tagLabel } from "./tags";

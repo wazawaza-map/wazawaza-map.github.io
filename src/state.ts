@@ -1,12 +1,14 @@
 import type { Place } from "./types";
 import { adjacentPrefectures } from "./prefectures";
 import { categoryLabel, normalizeCategory } from "./categories";
+import { normalizeTag, tagLabel } from "./tags";
 
 export type PlaceFilters = {
   prefecture: string;
   query: string;
   includeAdjacent: boolean;
   category: string;
+  tag?: string;
   visitStatus: "" | "visited" | "unvisited";
 };
 
@@ -23,6 +25,7 @@ export function createInitialState(places: Place[]): AppState {
       query: "",
       includeAdjacent: false,
       category: "",
+      tag: "",
       visitStatus: "",
     },
     viewportPlaceIds: new Set(places.map((place) => place.id)),
@@ -54,6 +57,7 @@ export function getMatchingPlaces(
     }
 
     const wasVisited = place.visited || Boolean(place.visited_at);
+    if (filters.tag && !(place.tags ?? []).some(tag => normalizeTag(tag) === filters.tag)) return false;
     if (filters.visitStatus === "visited" && !wasVisited) return false;
     if (filters.visitStatus === "unvisited" && wasVisited) return false;
 
@@ -71,7 +75,7 @@ export function getMatchingPlaces(
         place.municipality,
         place.category,
         categoryLabel(place.category),
-        ...place.tags,
+        ...(place.tags ?? []).flatMap(tag => [tag, tagLabel(tag, "ru"), tagLabel(tag, "en"), tagLabel(tag, "ja")]),
       ]
         .filter(Boolean)
         .join(" ")

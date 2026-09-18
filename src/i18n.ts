@@ -3,6 +3,7 @@ import type { AppLocale } from "./categories";
 const COPY = {
   ru: {
     heroTitle: "Места, ради которых<br>стоит свернуть с маршрута.", heroLead: "Не “топ-10 Токио”, а странное, красивое, далёкое и очень конкретное.", loading: "Загружаю опубликованные места…",
+    cardPages: "Страницы мест", previousPage: "← Назад", nextPage: "Далее →", cardRange: (start: number, end: number, total: number) => `${start}–${end} из ${total}`, clusterLabel: (count: number) => `${count} мест — приблизить`,
     statsLabel: "Статистика", publishedPlaces: "мест опубликовано", prefectures: "префектур", routes: "маршрутов",
     databaseEmptyTitle: "Связь есть. Публикаций пока нет.", databaseEmptyText: "Все места сейчас остаются в статусе draft.",
     viewLabel: "Режим карты", placesView: "Места", prefecturesView: "Префектуры", visitedPrefectures: "Посещённые префектуры", visitedPrefecturesHint: "Префектура отмечается автоматически, если в ней есть хотя бы одно место «Была здесь». Нажмите на префектуру, чтобы открыть её места.", prefectureVisited: "Была", prefectureNotVisited: "Пока не была", visitedPlaces: (count: number) => `${count} посещённых мест`, mapDataCredit: "Границы: National Land Information Division / japan-map-selector", mapLoadError: "Не удалось загрузить границы префектур.",
@@ -17,6 +18,7 @@ const COPY = {
   },
   ja: {
     heroTitle: "わざわざ<br>足を運びたい場所。", heroLead: "「東京おすすめ10選」ではなく、少し不思議で、美しく、遠くても訪れたい特別な場所。", loading: "公開中の場所を読み込んでいます…",
+    cardPages: "場所のページ", previousPage: "← 前へ", nextPage: "次へ →", cardRange: (start: number, end: number, total: number) => `${total}件中 ${start}–${end}件`, clusterLabel: (count: number) => `${count}件の場所 — 拡大`,
     statsLabel: "統計", publishedPlaces: "件を公開中", prefectures: "都道府県", routes: "ルート",
     databaseEmptyTitle: "接続済みですが、公開中の場所はまだありません。", databaseEmptyText: "すべての場所が下書きになっています。",
     viewLabel: "地図表示", placesView: "場所", prefecturesView: "都道府県", visitedPrefectures: "訪問した都道府県", visitedPrefecturesHint: "「訪問済み」の場所が1件以上ある都道府県を自動的に表示します。都道府県を選ぶと、その場所の一覧が開きます。", prefectureVisited: "訪問済み", prefectureNotVisited: "未訪問", visitedPlaces: (count: number) => `訪問済み ${count}件`, mapDataCredit: "境界データ: National Land Information Division / japan-map-selector", mapLoadError: "都道府県の境界を読み込めませんでした。",
@@ -31,6 +33,7 @@ const COPY = {
   },
   en: {
     heroTitle: "Places worth<br>going out of your way for.", heroLead: "Not another “Top 10 Tokyo” list—just strange, beautiful, faraway and very specific places.", loading: "Loading published places…",
+    cardPages: "Place pages", previousPage: "← Previous", nextPage: "Next →", cardRange: (start: number, end: number, total: number) => `${start}–${end} of ${total}`, clusterLabel: (count: number) => `${count} places — zoom in`,
     statsLabel: "Statistics", publishedPlaces: "places published", prefectures: "prefectures", routes: "routes",
     databaseEmptyTitle: "Connected, but nothing is published yet.", databaseEmptyText: "All places are currently saved as drafts.",
     viewLabel: "Map view", placesView: "Places", prefecturesView: "Prefectures", visitedPrefectures: "Visited prefectures", visitedPrefecturesHint: "A prefecture is highlighted automatically when it contains at least one place marked as visited. Select a prefecture to open its places.", prefectureVisited: "Visited", prefectureNotVisited: "Not visited yet", visitedPlaces: (count: number) => `${count} visited ${count === 1 ? "place" : "places"}`, mapDataCredit: "Boundaries: National Land Information Division / japan-map-selector", mapLoadError: "Could not load prefecture boundaries.",

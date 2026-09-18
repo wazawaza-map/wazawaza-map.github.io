@@ -145,3 +145,34 @@ npm run build
 The frontend intentionally uses the public API under RLS.
 
 After the legacy import all places/routes are `draft`, so the frontend will return zero records until selected rows are changed to `published`.
+
+## Source layout
+
+The public entry point is `src/main.ts`. Page markup lives in
+`places-view.ts`, map/filter/drawer interactions in `places-controller.ts`,
+and deep-link parsing and serialization in `places-url.ts`. Filtering itself
+remains in `state.ts`; public requests remain in `supabase.ts`.
+
+The public map loads places in batches of up to 500, ordered by prefecture and
+ID. It advances by the number of rows actually returned and continues until an
+empty page, so a lower Supabase row cap does not truncate the collection. A
+failed page rejects the entire load; repeated IDs also cause an error instead
+of duplicate markers. All pages load before the map is displayed. This is
+pagination of data requests, not a paginated browsing interface.
+
+Route statistics load separately after the places view renders. The count shows
+`—` until that request succeeds and stays unknown if it fails. Updating the
+count does not recreate the map or reset filters and open place details.
+
+The trip dashboard remains in `admin-trips.ts`. Its editor is split into:
+
+- `trip-editor.ts`: editor actions and navigation;
+- `trip-view.ts`: editor markup;
+- `trip-map.ts`: map lifecycle, layers, and city placement;
+- `trip-form.ts`: form serialization and saving changed fields;
+- `trip-api.ts`: authenticated requests and schema compatibility fallbacks;
+- `trip-types.ts`, `trip-format.ts`, `trip-ui-state.ts`, and
+  `trip-city-search.ts`: shared types, labels, remembered UI choices, and city lookup.
+
+`html.ts` provides HTML escaping for these modules. The module-boundary
+regression tests use mocked requests and do not write to Supabase.
