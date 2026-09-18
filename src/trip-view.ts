@@ -168,7 +168,7 @@ function tripRouteEditor(tripId: number, route: TripRouteData | null, days: Trip
               <button type="button" class="danger" data-delete-destination="${destination.id}">×</button>
             </div>
           </article>
-          ${nightsFor(destination).map(day => !next && !day.overnight_city && !day.lodging_name && !day.lodging_url && !day.lodging_status
+          ${nightsFor(destination).map(day => !next && !day.lodging_name && !day.lodging_url && !day.lodging_status && (day.destination_id != null || !day.overnight_city)
             ? emptyFinalOvernight(day)
             : overnightEditor(day, destinations, supportsDayDestinations, supportsInlineBookings)).join("")}
           ${leg ? `<article class="admin-trip-leg" data-leg-id="${leg.id}">

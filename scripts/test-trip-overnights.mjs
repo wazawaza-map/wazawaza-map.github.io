@@ -47,7 +47,7 @@ test("unassigned nights remain editable exactly once", () => {
 
 test("empty night after the final city is hidden without losing its day base", () => {
   const trip = { id: 1, title: "Return home", status: "idea", trip_bookings: [], supports_day_destinations: true, supports_inline_bookings: true,
-    trip_days: [{ id: 15, day_number: 2, destination_id: 4, lodging_name: null, lodging_url: null, lodging_status: null, trip_stops: [] }] };
+    trip_days: [{ id: 15, day_number: 2, destination_id: 4, overnight_city: "Home", lodging_name: null, lodging_url: null, lodging_status: null, trip_stops: [] }] };
   const route = { destinations: [{ id: 3, name: "Sendai", position: 1 }, { id: 4, name: "Home", position: 2 }], legs: [], supportsTimes: true, supportsLegDays: true, supportsBookingUrl: true, supportsDestinationDays: true };
   const html = tripEditorPage({ places: [] }, trip, route, new Map());
   assert.ok(!html.includes('aria-label="Ночёвка после дня 2"'));
