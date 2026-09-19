@@ -250,6 +250,11 @@ export async function renderTripEditor(options: TripPlannerOptions, tripId: numb
 
     form.addEventListener("click", async (event) => {
       const target = event.target as HTMLElement;
+      const planLink = target.closest<HTMLButtonElement>("[data-scroll-day]");
+      if (planLink) {
+        document.querySelector(`#trip-day-${Number(planLink.dataset.scrollDay)}`)?.scrollIntoView({ behavior: "smooth", block: "start" });
+        return;
+      }
       const add = target.closest<HTMLButtonElement>("[data-add-stop]");
       const deleteStop = target.closest<HTMLButtonElement>("[data-delete-stop]");
       const deleteDay = target.closest<HTMLButtonElement>("[data-delete-day]");

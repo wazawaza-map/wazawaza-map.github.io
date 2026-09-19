@@ -24,13 +24,14 @@ async function request<T>(
 }
 
 export async function getTrips(options: TripDataOptions, id?: number): Promise<Trip[]> {
-  async function fetchTrips(includeBookings: boolean, includeDayDestinations: boolean, includeInlineBookings: boolean): Promise<Trip[]> {
+  async function fetchTrips(includeBookings: boolean, includeDayDestinations: boolean, includeInlineBookings: boolean, includeDailyItinerary: boolean): Promise<Trip[]> {
     const dayFields = [
       "id", "day_number", "date", ...(includeDayDestinations ? ["destination_id"] : []),
+      ...(includeDailyItinerary ? ["city_destination_id", "transport_mode", "transport_details", "transport_booking_url", "transport_departure_time", "transport_arrival_time", "transport_booked", "transport_paid"] : []),
       "overnight_city", "lodging_name", "lodging_url", ...(includeInlineBookings ? ["lodging_status"] : []), "notes",
       `trip_stops(id,place_id,position,custom_name,planned_time,notes${includeInlineBookings ? ",admission_status,admission_url" : ""})`,
     ].join(",");
-    const baseFields = ["id", "title", "start_date", "end_date", "status", "notes", "updated_at", `trip_days(${dayFields})`];
+    const baseFields = ["id", "title", "start_date", "end_date", "status", "notes", ...(includeDailyItinerary ? ["home_city"] : []), "updated_at", `trip_days(${dayFields})`];
     const select = [...baseFields, ...(includeBookings
       ? ["trip_bookings(id,kind,title,status,date,url,notes,position)"]
       : [])].join(",");
@@ -43,17 +44,20 @@ export async function getTrips(options: TripDataOptions, id?: number): Promise<T
   let includeBookings = true;
   let includeDayDestinations = true;
   let includeInlineBookings = true;
-  for (let attempt = 0; attempt < 4 && !trips; attempt += 1) {
+  let includeDailyItinerary = true;
+  for (let attempt = 0; attempt < 5 && !trips; attempt += 1) {
     try {
-      trips = await fetchTrips(includeBookings, includeDayDestinations, includeInlineBookings);
+      trips = await fetchTrips(includeBookings, includeDayDestinations, includeInlineBookings, includeDailyItinerary);
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       if (includeBookings && message.includes("trip_bookings")) {
         includeBookings = false;
-      } else if (includeDayDestinations && message.includes("destination_id")) {
-        includeDayDestinations = false;
       } else if (includeInlineBookings && (message.includes("lodging_status") || message.includes("admission_status") || message.includes("admission_url"))) {
         includeInlineBookings = false;
+      } else if (includeDailyItinerary && (message.includes("home_city") || message.includes("city_destination_id") || message.includes("transport_"))) {
+        includeDailyItinerary = false;
+      } else if (includeDayDestinations && message.includes("destination_id")) {
+        includeDayDestinations = false;
       } else {
         throw error;
       }
@@ -64,10 +68,22 @@ export async function getTrips(options: TripDataOptions, id?: number): Promise<T
     if (!includeBookings) trip.trip_bookings = [];
     trip.supports_day_destinations = includeDayDestinations;
     trip.supports_inline_bookings = includeInlineBookings;
+    trip.supports_daily_itinerary = includeDailyItinerary;
+    if (!includeDailyItinerary) trip.home_city = "Токио";
     trip.trip_days.sort((a, b) => a.day_number - b.day_number);
     trip.trip_days.forEach((day) => {
       if (!includeDayDestinations) day.destination_id = null;
       if (!includeInlineBookings) day.lodging_status = null;
+      if (!includeDailyItinerary) {
+        day.city_destination_id = null;
+        day.transport_mode = "train";
+        day.transport_details = null;
+        day.transport_booking_url = null;
+        day.transport_departure_time = null;
+        day.transport_arrival_time = null;
+        day.transport_booked = false;
+        day.transport_paid = false;
+      }
       day.trip_stops.forEach((stop) => {
         if (!includeInlineBookings) {
           stop.admission_status = null;

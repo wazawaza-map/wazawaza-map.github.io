@@ -30,10 +30,18 @@ export type TripDay = {
   day_number: number;
   date: string | null;
   destination_id: number | null;
+  city_destination_id: number | null;
   overnight_city: string | null;
   lodging_name: string | null;
   lodging_url: string | null;
   lodging_status: BookingStatus | null;
+  transport_mode: TripLeg["mode"];
+  transport_details: string | null;
+  transport_booking_url: string | null;
+  transport_departure_time: string | null;
+  transport_arrival_time: string | null;
+  transport_booked: boolean;
+  transport_paid: boolean;
   notes: string | null;
   trip_stops: TripStop[];
 };
@@ -95,11 +103,13 @@ export type Trip = {
   end_date: string | null;
   status: "idea" | "planning" | "booked" | "completed";
   notes: string | null;
+  home_city: string;
   updated_at: string;
   trip_days: TripDay[];
   trip_bookings: TripBooking[];
   supports_day_destinations: boolean;
   supports_inline_bookings: boolean;
+  supports_daily_itinerary: boolean;
 };
 
 export type TripPlannerOptions = {

@@ -12,6 +12,7 @@ export async function persistTripForm(options: TripDataOptions, trip: Trip, trip
     start_date: String(data.get("start_date") || "") || null,
     end_date: String(data.get("end_date") || "") || null,
     notes: String(data.get("notes") || "").trim() || null,
+    ...(trip.supports_daily_itinerary ? { home_city: String(data.get("home_city") || "").trim() || "Токио" } : {}),
   });
   for (const day of trip.trip_days) {
     const dayValues: Record<string, unknown> = {
@@ -30,6 +31,16 @@ export async function persistTripForm(options: TripDataOptions, trip: Trip, trip
       dayValues.overnight_city = destination
         ? String(data.get(`destination_${destination.id}_name`) || destination.name).trim() || null
         : null;
+    }
+    if (trip.supports_daily_itinerary) {
+      dayValues.city_destination_id = Number(data.get(`day_${day.id}_city_destination_id`)) || null;
+      dayValues.transport_mode = data.get(`day_${day.id}_transport_mode`) || "train";
+      dayValues.transport_details = String(data.get(`day_${day.id}_transport_details`) || "").trim() || null;
+      dayValues.transport_booking_url = String(data.get(`day_${day.id}_transport_booking_url`) || "").trim() || null;
+      dayValues.transport_departure_time = String(data.get(`day_${day.id}_transport_departure_time`) || "") || null;
+      dayValues.transport_arrival_time = String(data.get(`day_${day.id}_transport_arrival_time`) || "") || null;
+      dayValues.transport_booked = data.get(`day_${day.id}_transport_booked`) === "on";
+      dayValues.transport_paid = data.get(`day_${day.id}_transport_paid`) === "on";
     }
     await updateRowIfChanged(options, "trip_days", day.id, day, dayValues);
     for (const stop of day.trip_stops) {

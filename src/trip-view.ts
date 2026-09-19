@@ -29,7 +29,7 @@ function dayEditor(
   places: Map<number, TripPlannerPlace>,
   supportsInlineBookings: boolean,
 ): string {
-  return `<section class="admin-trip-day" data-day-id="${day.id}">
+  return `<section class="admin-trip-day" id="trip-day-${day.id}" data-day-id="${day.id}">
     <header class="admin-trip-day__header">
       <div><p class="admin-kicker">ДЕНЬ ${day.day_number}</p><h2>${escapeHtml(day.date || "Без даты")}</h2></div>
       <button class="danger" type="button" data-delete-day="${day.id}">Удалить день</button>
@@ -67,6 +67,54 @@ function dayEditor(
       <button type="button" data-add-stop="${day.id}">＋ Добавить</button>
     </div>
   </section>`;
+}
+
+function destinationName(id: number | null, destinations: TripDestination[], fallback = "Город не выбран"): string {
+  return destinations.find(destination => destination.id === id)?.name ?? fallback;
+}
+
+function dailyItineraryEditor(trip: Trip, route: TripRouteData | null): string {
+  if (!trip.supports_daily_itinerary) {
+    return `<section class="admin-trip-route-setup"><strong>Обзор по дням ещё не включён.</strong><br>Выполните актуальный <code>scripts/trip_planner_setup.sql</code> в Supabase SQL Editor.</section>`;
+  }
+  const destinations = route?.destinations ?? [];
+  return `<details class="admin-trip-route-section" open>
+    <summary><div><p class="admin-kicker">МАРШРУТ</p><h2>Дни, транспорт и ночёвки</h2></div><span>${trip.trip_days.length} дн.</span></summary>
+    <div class="admin-trip-route-body">
+      <label class="admin-trip-home">Дом / точка отправления и возвращения<input name="home_city" value="${escapeHtml(trip.home_city || "Токио")}" placeholder="Токио"></label>
+      <div class="admin-trip-itinerary">
+        ${trip.trip_days.map((day, index) => {
+          const city = destinationName(day.city_destination_id, destinations);
+          const overnight = destinationName(day.destination_id, destinations, day.overnight_city || "Не выбрана");
+          const isFirst = index === 0;
+          const isLast = index === trip.trip_days.length - 1;
+          const transportFrom = isFirst ? trip.home_city || "Токио" : city;
+          const transportTo = isFirst ? city : isLast ? trip.home_city || "Токио" : overnight;
+          return `<article class="admin-trip-itinerary-day">
+            <header><span>${day.day_number}</span><div><p class="admin-kicker">ДЕНЬ ${day.day_number}</p><h3>${escapeHtml(city)}</h3><time>${escapeHtml(day.date || "Без даты")}</time></div></header>
+            <div class="admin-form-grid">
+              <label>Город дня<select name="day_${day.id}_city_destination_id">
+                <option value="">Не выбран</option>
+                ${destinations.map(destination => `<option value="${destination.id}"${destination.id === day.city_destination_id ? " selected" : ""}>${escapeHtml(destination.name)}</option>`).join("")}
+              </select></label>
+              <label>Транспорт<select name="day_${day.id}_transport_mode">${selectOptions(TRANSPORT_MODE_LABELS, day.transport_mode || "train")}</select></label>
+              <label>Маршрут<input value="${escapeHtml(`${transportFrom} → ${transportTo}`)}" readonly></label>
+              <label>Детали<input name="day_${day.id}_transport_details" value="${escapeHtml(day.transport_details || "")}" placeholder="Поезд, рейс, пересадка…"></label>
+              <label>Отправление<input name="day_${day.id}_transport_departure_time" type="time" value="${escapeHtml((day.transport_departure_time || "").slice(0, 5))}"></label>
+              <label>Прибытие<input name="day_${day.id}_transport_arrival_time" type="time" value="${escapeHtml((day.transport_arrival_time || "").slice(0, 5))}"></label>
+              <label>Билет / бронь<input name="day_${day.id}_transport_booking_url" type="url" value="${escapeHtml(day.transport_booking_url || "")}" placeholder="https://…"></label>
+              <label class="admin-trip-check"><input name="day_${day.id}_transport_booked" type="checkbox"${day.transport_booked ? " checked" : ""}> Забронировано</label>
+              <label class="admin-trip-check"><input name="day_${day.id}_transport_paid" type="checkbox"${day.transport_paid ? " checked" : ""}> Оплачено</label>
+            </div>
+            ${!isLast || day.lodging_name || day.lodging_url || day.lodging_status
+              ? overnightEditor(day, destinations, trip.supports_day_destinations, trip.supports_inline_bookings)
+              : emptyFinalOvernight(day)}
+            <button class="secondary admin-trip-plan-link" type="button" data-scroll-day="${day.id}">↓ Открыть план дня</button>
+          </article>`;
+        }).join("")}
+      </div>
+    </div>
+  </details>`;
 }
 
 function overnightEditor(day: TripDay, destinations: TripDestination[], supportsDayDestinations: boolean, supportsInlineBookings: boolean): string {
@@ -117,31 +165,20 @@ function bookingEditor(booking: TripBooking): string {
 function tripRouteEditor(tripId: number, route: TripRouteData | null, days: TripDay[], supportsDayDestinations: boolean, supportsInlineBookings: boolean): string {
   if (!route) {
     return `<details class="admin-trip-route-section" open>
-      <summary><div><p class="admin-kicker">МАРШРУТ</p><h2>Города и транспорт</h2></div></summary>
+      <summary><div><p class="admin-kicker">КАРТА</p><h2>Точки городов</h2></div></summary>
       <div class="admin-trip-route-body"><p class="admin-trip-route-setup">Для городов и транспорта нужно повторно выполнить актуальный <code>scripts/trip_planner_setup.sql</code> в Supabase. Ночёвки по-прежнему можно редактировать.</p>
       ${days.map(day => overnightEditor(day, [], supportsDayDestinations, supportsInlineBookings)).join("")}</div>
     </details>`;
   }
   const { destinations, legs } = route;
-  const destinationIds = new Set(destinations.map(destination => destination.id));
-  const nightDestination = new Map(days.map(day => [
-    day.id,
-    day.destination_id != null && destinationIds.has(day.destination_id)
-      ? day.destination_id
-      : day.destination_id == null
-        ? destinations.find(destination => destination.trip_day_id === day.id)?.id ?? null
-        : null,
-  ]));
-  const nightsFor = (destination: TripDestination): TripDay[] => days.filter(day => nightDestination.get(day.id) === destination.id);
-  const unassignedNights = days.filter(day => nightDestination.get(day.id) == null);
   const isOpen = tripUiState.savedTripRouteOpen?.tripId === tripId ? tripUiState.savedTripRouteOpen.open : destinations.length === 0;
-  return `<details class="admin-trip-route-section" data-trip-route="${tripId}"${isOpen ? " open" : ""}>
+  return `<details class="admin-trip-route-section admin-trip-route-section--technical" data-trip-route="${tripId}"${isOpen ? " open" : ""}>
     <summary>
-      <div><p class="admin-kicker">МАРШРУТ</p><h2>Города и транспорт</h2></div>
+      <div><p class="admin-kicker">КАРТА</p><h2>Точки городов и старые переезды</h2></div>
       <span>${destinations.length} ${destinations.length === 1 ? "город" : "городов"}</span>
     </summary>
     <div class="admin-trip-route-body">
-    <p class="admin-trip-route-hint">Добавьте города по порядку, включая город отправления в начале и возвращение домой в конце. Транспорт появится между ними; ночёвку можно привязать к любому городу.</p>
+    <p class="admin-trip-route-hint">Это технические точки для карты. Основной порядок дней, транспорт и ночёвки редактируются в блоке выше. Повторяющийся город можно оставить: его точка используется для сложного маршрута.</p>
     ${route.supportsTimes ? "" : `<p class="admin-trip-route-setup">Повторно выполните актуальный SQL, чтобы включить время отправления и прибытия.</p>`}
     ${route.supportsLegDays ? "" : `<p class="admin-trip-route-setup">Повторно выполните актуальный SQL, чтобы назначать транспорт определённому дню.</p>`}
     ${route.supportsBookingUrl ? "" : `<p class="admin-trip-route-setup">Повторно выполните актуальный SQL, чтобы сохранять ссылки на билеты.</p>`}
@@ -168,9 +205,6 @@ function tripRouteEditor(tripId: number, route: TripRouteData | null, days: Trip
               <button type="button" class="danger" data-delete-destination="${destination.id}">×</button>
             </div>
           </article>
-          ${nightsFor(destination).map(day => !next && !day.lodging_name && !day.lodging_url && !day.lodging_status && (day.destination_id != null || !day.overnight_city)
-            ? emptyFinalOvernight(day)
-            : overnightEditor(day, destinations, supportsDayDestinations, supportsInlineBookings)).join("")}
           ${leg ? `<article class="admin-trip-leg" data-leg-id="${leg.id}">
             <span class="admin-trip-leg__arrow">↓</span>
             <label>День переезда<select name="leg_${leg.id}_trip_day_id"${route.supportsLegDays ? "" : " disabled"}>
@@ -188,7 +222,6 @@ function tripRouteEditor(tripId: number, route: TripRouteData | null, days: Trip
         </div>`;
       }).join("") : `<p class="admin-trip-day__empty">Добавьте первый город — для него не нужна запись в базе мест.</p>`}
     </div>
-    ${unassignedNights.length ? `<div class="admin-trip-unassigned-nights"><p class="admin-trip-route-hint">Ночёвки без выбранного города</p>${unassignedNights.map(day => overnightEditor(day, destinations, supportsDayDestinations, supportsInlineBookings)).join("")}</div>` : ""}
     <div class="admin-add-destination">
       <label>Следующий город<input name="new_destination_name" placeholder="Например, 仙台 / Сендай"></label>
       <button type="button" data-add-destination>＋ Добавить город</button>
@@ -218,6 +251,7 @@ export function tripEditorPage(options: TripPlannerOptions, trip: Trip, tripRout
         </div>
         <label>Общий комментарий<textarea name="notes" rows="3">${escapeHtml(trip.notes || "")}</textarea></label>
       </section>
+      ${dailyItineraryEditor(trip, tripRoute)}
       ${tripRouteEditor(trip.id, tripRoute, trip.trip_days, trip.supports_day_destinations, trip.supports_inline_bookings)}
       <section class="admin-trip-map-section">
         <div class="admin-trip-map-controls">

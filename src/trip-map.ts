@@ -196,8 +196,10 @@ export function initializeTripMap(options: TripPlannerOptions, trip: Trip, tripR
       if (mode === "overview") return cityLatLngs;
       if (mode === "day") {
         const dayId = Number(mapDaySelect?.value);
-        const destinationId = trip.trip_days.find((day) => day.id === dayId)?.destination_id;
-        const relevantDestinationIds = new Set<number>(destinationId ? [destinationId] : []);
+        const selectedDay = trip.trip_days.find((day) => day.id === dayId);
+        const relevantDestinationIds = new Set<number>(
+          [selectedDay?.city_destination_id, selectedDay?.destination_id].filter((id): id is number => id != null)
+        );
         destinations.filter((destination) => destination.trip_day_id === dayId).forEach((destination) => relevantDestinationIds.add(destination.id));
         legs.filter((leg) => leg.trip_day_id === dayId).forEach((leg) => {
           relevantDestinationIds.add(leg.from_destination_id);
@@ -220,8 +222,10 @@ export function initializeTripMap(options: TripPlannerOptions, trip: Trip, tripR
       if (mode === "overview" || mode === "all") cityLayer.addTo(map);
       if (mode === "day") {
         const dayId = Number(mapDaySelect?.value);
-        const destinationId = trip.trip_days.find((day) => day.id === dayId)?.destination_id;
-        const relevantDestinationIds = new Set<number>(destinationId ? [destinationId] : []);
+        const selectedDay = trip.trip_days.find((day) => day.id === dayId);
+        const relevantDestinationIds = new Set<number>(
+          [selectedDay?.city_destination_id, selectedDay?.destination_id].filter((id): id is number => id != null)
+        );
         destinations.filter((destination) => destination.trip_day_id === dayId).forEach((destination) => relevantDestinationIds.add(destination.id));
         legs.filter((leg) => leg.trip_day_id === dayId).forEach((leg) => {
           relevantDestinationIds.add(leg.from_destination_id);
