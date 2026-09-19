@@ -21,10 +21,6 @@ export async function renderTripEditor(options: TripPlannerOptions, tripId: numb
 
     const form = document.querySelector<HTMLFormElement>("#trip-editor")!;
     const error = form.querySelector<HTMLElement>(".admin-error");
-    const routeDetails = form.querySelector<HTMLDetailsElement>("[data-trip-route]");
-    routeDetails?.addEventListener("toggle", () => {
-      tripUiState.savedTripRouteOpen = { tripId: trip.id, open: routeDetails.open };
-    });
     const destinations = tripRoute?.destinations ?? [];
     const legs = tripRoute?.legs ?? [];
     document.querySelector("[data-back-to-trips]")?.addEventListener("click", () => void onBack());

@@ -156,11 +156,12 @@ function dailyItineraryEditor(trip: Trip, route: TripRouteData | null): string {
                 : `<section class="admin-day-transport"><p class="admin-trip-route-setup">Выполните актуальный SQL, чтобы добавить несколько переездов. Пока сохранён старый маршрут: ${escapeHtml(`${transportFrom} → ${transportTo}`)}.</p></section>`}
               ${trip.supports_multiple_transports ? `<button class="secondary admin-add-day-transport" type="button" data-add-day-transport="${day.id}">＋ Добавить транспорт</button>` : ""}
             </div>
-            ${!isLast || hasLodging(day) || day.lodging_source_day_id
-              ? day.lodging_source_day_id && trip.supports_lodging_spans
+            ${isLast
+              ? emptyFinalOvernight(day)
+              : day.lodging_source_day_id && trip.supports_lodging_spans
                 ? linkedOvernight(day, lodgingSource, destinations)
                 : overnightEditor(day, destinations, trip.supports_day_destinations, trip.supports_inline_bookings, trip.supports_lodging_spans, lodgingNightCount(day, trip.trip_days), Math.max(1, trip.trip_days.length - index - 1), previousLodging && hasLodging(previousLodging) ? previousLodging : null)
-              : emptyFinalOvernight(day)}
+            }
             <button class="secondary admin-trip-plan-link" type="button" data-scroll-day="${day.id}">↓ Открыть план дня</button>
           </article>`;
         }).join("")}
@@ -229,74 +230,6 @@ function bookingEditor(booking: TripBooking): string {
   </article>`;
 }
 
-function tripRouteEditor(tripId: number, route: TripRouteData | null, days: TripDay[], supportsDayDestinations: boolean, supportsInlineBookings: boolean): string {
-  if (!route) {
-    return `<details class="admin-trip-route-section" open>
-      <summary><div><p class="admin-kicker">КАРТА</p><h2>Точки городов</h2></div></summary>
-      <div class="admin-trip-route-body"><p class="admin-trip-route-setup">Для городов и транспорта нужно повторно выполнить актуальный <code>scripts/trip_planner_setup.sql</code> в Supabase. Ночёвки по-прежнему можно редактировать.</p>
-      ${days.map(day => overnightEditor(day, [], supportsDayDestinations, supportsInlineBookings)).join("")}</div>
-    </details>`;
-  }
-  const { destinations, legs } = route;
-  const isOpen = tripUiState.savedTripRouteOpen?.tripId === tripId ? tripUiState.savedTripRouteOpen.open : destinations.length === 0;
-  return `<details class="admin-trip-route-section admin-trip-route-section--technical" data-trip-route="${tripId}"${isOpen ? " open" : ""}>
-    <summary>
-      <div><p class="admin-kicker">КАРТА</p><h2>Точки городов и старые переезды</h2></div>
-      <span>${destinations.length} ${destinations.length === 1 ? "город" : "городов"}</span>
-    </summary>
-    <div class="admin-trip-route-body">
-    <p class="admin-trip-route-hint">Это технические точки для карты. Основной порядок дней, транспорт и ночёвки редактируются в блоке выше. Повторяющийся город можно оставить: его точка используется для сложного маршрута.</p>
-    ${route.supportsTimes ? "" : `<p class="admin-trip-route-setup">Повторно выполните актуальный SQL, чтобы включить время отправления и прибытия.</p>`}
-    ${route.supportsLegDays ? "" : `<p class="admin-trip-route-setup">Повторно выполните актуальный SQL, чтобы назначать транспорт определённому дню.</p>`}
-    ${route.supportsBookingUrl ? "" : `<p class="admin-trip-route-setup">Повторно выполните актуальный SQL, чтобы сохранять ссылки на билеты.</p>`}
-    ${route.supportsDestinationDays ? "" : `<p class="admin-trip-route-setup">Повторно выполните актуальный SQL, чтобы назначать дни городам.</p>`}
-    <div class="admin-trip-destinations">
-      ${destinations.length ? destinations.map((destination, index) => {
-        const next = destinations[index + 1];
-        const leg = next ? legs.find((item) => item.from_destination_id === destination.id && item.to_destination_id === next.id) : undefined;
-        return `<div class="admin-trip-route-piece">
-          <article class="admin-trip-destination" data-destination-id="${destination.id}">
-            <span class="admin-trip-destination__position">${index + 1}</span>
-            <div class="admin-trip-destination__fields">
-              <label>Город<input name="destination_${destination.id}_name" required value="${escapeHtml(destination.name)}"></label>
-              <label>День посещения<select name="destination_${destination.id}_trip_day_id" data-destination-day="${destination.id}" data-current-day="${destination.trip_day_id ?? ""}"${route.supportsDestinationDays ? "" : " disabled"}>
-                <option value="">Не назначен</option>
-                ${days.map((day) => `<option value="${day.id}"${destination.trip_day_id === day.id ? " selected" : ""}>День ${day.day_number}${day.date ? ` · ${escapeHtml(day.date)}` : ""}</option>`).join("")}
-              </select></label>
-              <label>Комментарий<input name="destination_${destination.id}_notes" value="${escapeHtml(destination.notes || "")}" placeholder="Ночёвка, район, планы…"></label>
-            </div>
-            <div class="admin-trip-destination__actions">
-              <button type="button" data-move-destination="up" data-destination-id="${destination.id}" aria-label="Переместить город выше"${index === 0 ? " disabled" : ""}>↑</button>
-              <button type="button" data-move-destination="down" data-destination-id="${destination.id}" aria-label="Переместить город ниже"${index === destinations.length - 1 ? " disabled" : ""}>↓</button>
-              <button type="button" class="secondary" data-place-destination="${destination.id}">${destination.latitude == null ? "Поставить на карте" : "Переставить"}</button>
-              <button type="button" class="danger" data-delete-destination="${destination.id}">×</button>
-            </div>
-          </article>
-          ${leg ? `<article class="admin-trip-leg" data-leg-id="${leg.id}">
-            <span class="admin-trip-leg__arrow">↓</span>
-            <label>День переезда<select name="leg_${leg.id}_trip_day_id"${route.supportsLegDays ? "" : " disabled"}>
-              <option value="">Не назначен</option>
-              ${days.map((day) => `<option value="${day.id}"${leg.trip_day_id === day.id ? " selected" : ""}>День ${day.day_number}${day.date ? ` · ${escapeHtml(day.date)}` : ""}</option>`).join("")}
-            </select></label>
-            <label>Транспорт<select name="leg_${leg.id}_mode">${selectOptions(TRANSPORT_MODE_LABELS, leg.mode)}</select></label>
-            <label>Детали<input name="leg_${leg.id}_details" value="${escapeHtml(leg.details || "")}" placeholder="Hayabusa 15, пересадка в…"></label>
-            <label>Билет / бронь<input name="leg_${leg.id}_booking_url" type="url" value="${escapeHtml(leg.booking_url || "")}" placeholder="https://…"${route.supportsBookingUrl ? "" : " disabled"}></label>
-            <label>Отправление<input name="leg_${leg.id}_departure_time" type="time" value="${escapeHtml((leg.departure_time || "").slice(0, 5))}"${route.supportsTimes ? "" : " disabled"}></label>
-            <label>Прибытие<input name="leg_${leg.id}_arrival_time" type="time" value="${escapeHtml((leg.arrival_time || "").slice(0, 5))}"${route.supportsTimes ? "" : " disabled"}></label>
-            <label class="admin-trip-check"><input name="leg_${leg.id}_booked" type="checkbox"${leg.booked ? " checked" : ""}> Забронировано</label>
-            <label class="admin-trip-check"><input name="leg_${leg.id}_paid" type="checkbox"${leg.paid ? " checked" : ""}> Оплачено</label>
-          </article>` : ""}
-        </div>`;
-      }).join("") : `<p class="admin-trip-day__empty">Добавьте первый город — для него не нужна запись в базе мест.</p>`}
-    </div>
-    <div class="admin-add-destination">
-      <label>Следующий город<input name="new_destination_name" placeholder="Например, 仙台 / Сендай"></label>
-      <button type="button" data-add-destination>＋ Добавить город</button>
-    </div>
-    </div>
-  </details>`;
-}
-
 export function tripEditorPage(options: TripPlannerOptions, trip: Trip, tripRoute: TripRouteData | null, places: Map<number, TripPlannerPlace>): string {
   const placeOptions = [...options.places]
     .sort((a, b) => placeName(a).localeCompare(placeName(b), "ru"))
@@ -319,7 +252,6 @@ export function tripEditorPage(options: TripPlannerOptions, trip: Trip, tripRout
         <label>Общий комментарий<textarea name="notes" rows="3">${escapeHtml(trip.notes || "")}</textarea></label>
       </section>
       ${dailyItineraryEditor(trip, tripRoute)}
-      ${tripRouteEditor(trip.id, tripRoute, trip.trip_days, trip.supports_day_destinations, trip.supports_inline_bookings)}
       <section class="admin-trip-map-section">
         <div class="admin-trip-map-controls">
           <p class="admin-kicker">МАРШРУТ НА КАРТЕ</p>

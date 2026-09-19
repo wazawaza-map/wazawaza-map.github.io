@@ -78,7 +78,7 @@ test("one lodging can cover consecutive nights and linked days are read-only", (
   assert.match(html, /data-detach-lodging="31"/);
 });
 
-test("a saved final-night hotel remains editable", () => {
+test("the final day never displays a lodging editor", () => {
   const trip = {
     id: 3, title: "Extra night", status: "idea", start_date: null, end_date: null, notes: null,
     home_city: "Токио", supports_daily_itinerary: true, supports_day_destinations: true,
@@ -86,8 +86,9 @@ test("a saved final-night hotel remains editable", () => {
     trip_days: [day(15, 1, 14, 14, { lodging_name: "Airport hotel" })],
   };
   const html = tripEditorPage({ places: [] }, trip, route, new Map());
-  assert.match(html, /aria-label="Ночёвка после дня 1"/);
-  assert.match(html, /name="day_15_lodging_name" value="Airport hotel"/);
+  assert.doesNotMatch(html, /aria-label="Ночёвка после дня 1"/);
+  assert.doesNotMatch(html, /name="day_15_lodging_name"/);
+  assert.match(html, /type="hidden" name="day_15_destination_id" value="14"/);
 });
 
 test("transport for an individual place is optional and expands only when saved", () => {

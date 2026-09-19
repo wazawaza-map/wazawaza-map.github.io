@@ -120,6 +120,7 @@ export async function persistTripForm(options: TripDataOptions, trip: Trip, trip
     });
   }
   for (const destination of destinations) {
+    if (!data.has(`destination_${destination.id}_name`)) continue;
     const name = String(data.get(`destination_${destination.id}_name`) || "").trim();
     if (!name) throw new Error("Укажите название города.");
     const destinationValues: Record<string, unknown> = {

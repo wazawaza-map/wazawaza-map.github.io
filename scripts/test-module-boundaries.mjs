@@ -96,7 +96,6 @@ test("renumbering avoids intermediate position collisions", async (t) => {
 test("trip markup escapes user content and retains map choices across renders", () => {
   tripUiState.savedTripMapLayer = { tripId: 7, mode: "day" };
   tripUiState.savedTripMapDay = { tripId: 7, dayId: 2 };
-  tripUiState.savedTripRouteOpen = { tripId: 7, open: false };
   const trip = { id: 7, title: '<script>alert("x")</script>', status: "idea", trip_days: [{ id: 2, day_number: 1, trip_stops: [] }], trip_bookings: [], supports_day_destinations: true, supports_inline_bookings: true };
   const route = { destinations: [], legs: [], supportsTimes: true, supportsLegDays: true, supportsBookingUrl: true, supportsDestinationDays: true };
   const html = tripEditorPage(options, trip, route, new Map());
@@ -104,7 +103,7 @@ test("trip markup escapes user content and retains map choices across renders", 
   assert.ok(html.includes("&lt;script&gt;"));
   assert.match(html, /value="day" selected/);
   assert.match(html, /value="2" selected/);
-  assert.match(html, /data-trip-route="7">/);
+  assert.ok(!html.includes("Точки городов и старые переезды"));
   assert.ok(!html.includes("Повторно выполните"));
   for (const key of Object.keys(tripUiState)) delete tripUiState[key];
 });
