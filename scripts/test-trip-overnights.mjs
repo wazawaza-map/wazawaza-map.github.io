@@ -18,7 +18,7 @@ function day(id, dayNumber, cityDestinationId, destinationId, extra = {}) {
   return {
     id, day_number: dayNumber, date: `2026-10-${9 + dayNumber}`, city_destination_id: cityDestinationId,
     destination_id: destinationId, overnight_city: null, lodging_name: null, lodging_url: null,
-    lodging_status: null, transport_mode: "train", transport_details: null,
+    lodging_status: null, lodging_source_day_id: null, transport_mode: "train", transport_details: null,
     transport_booking_url: null, transport_departure_time: null, transport_arrival_time: null,
     transport_booked: false, transport_paid: false, notes: null, trip_stops: [], trip_day_transports: [], ...extra,
   };
@@ -35,7 +35,7 @@ test("day-first overview represents Komatsu, Komatsu, Toyama with travel home", 
   const trip = {
     id: 2, title: "Исикава — Тояма", status: "planning", start_date: "2026-10-10", end_date: null,
     notes: null, home_city: "Токио", supports_daily_itinerary: true, supports_multiple_transports: true,
-    supports_day_destinations: true, supports_inline_bookings: true, trip_bookings: [],
+    supports_day_destinations: true, supports_inline_bookings: true, supports_lodging_spans: true, trip_bookings: [],
     trip_days: [
       day(10, 1, 13, 13, { lodging_name: "Hotel & Komatsu", lodging_status: "booked", trip_day_transports: [transport(101, 1, "Токио", "Комацу")] }),
       day(11, 2, 13, 14, { lodging_name: "Toyama hotel", trip_day_transports: [transport(102, 1, "Комацу", "Тояма")] }),
@@ -55,6 +55,27 @@ test("day-first overview represents Komatsu, Komatsu, Toyama with travel home", 
   assert.ok(html.indexOf('data-scroll-day="10"') < html.indexOf('id="trip-day-10"'));
   assert.ok(html.includes("Hotel &amp; Komatsu"));
   assert.ok(!html.includes("Hotel & Komatsu"));
+});
+
+test("one lodging can cover consecutive nights and linked days are read-only", () => {
+  const trip = {
+    id: 8, title: "Shared hotel", status: "planning", start_date: "2026-10-10", end_date: null,
+    notes: null, home_city: "Токио", supports_daily_itinerary: true, supports_multiple_transports: true,
+    supports_day_destinations: true, supports_inline_bookings: true, supports_lodging_spans: true, trip_bookings: [],
+    trip_days: [
+      day(30, 1, 13, 13, { lodging_name: "Komatsu Base", lodging_status: "booked" }),
+      day(31, 2, 13, 13, { lodging_source_day_id: 30 }),
+      day(32, 3, 14, null),
+    ],
+  };
+  const html = tripEditorPage({ places: [] }, trip, route, new Map());
+  assert.match(html, /name="day_30_lodging_nights"/);
+  assert.match(html, /<option value="2" selected>2<\/option>/);
+  assert.match(html, /name="day_31_lodging_source_day_id" value="30"/);
+  assert.match(html, /Та же ночёвка · Комацу/);
+  assert.match(html, /Komatsu Base/);
+  assert.ok(!html.includes('name="day_31_lodging_name"'));
+  assert.match(html, /data-detach-lodging="31"/);
 });
 
 test("a saved final-night hotel remains editable", () => {

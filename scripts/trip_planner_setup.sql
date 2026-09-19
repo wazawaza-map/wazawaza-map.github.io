@@ -23,6 +23,7 @@ create table if not exists public.trip_days (
   lodging_name text,
   lodging_url text,
   lodging_status text check (lodging_status is null or lodging_status in ('planned', 'booked', 'paid')),
+  lodging_source_day_id bigint references public.trip_days(id) on delete set null,
   notes text,
   unique (trip_id, day_number)
 );
@@ -105,6 +106,11 @@ alter table public.trip_legs add column if not exists trip_day_id bigint referen
 alter table public.trip_legs add column if not exists booking_url text;
 alter table public.trip_days add column if not exists destination_id bigint references public.trip_destinations(id) on delete set null;
 alter table public.trip_days add column if not exists lodging_status text;
+alter table public.trip_days add column if not exists lodging_source_day_id bigint references public.trip_days(id) on delete set null;
+create index if not exists trip_days_lodging_source_day_id_idx on public.trip_days(lodging_source_day_id);
+alter table public.trip_days drop constraint if exists trip_days_lodging_source_not_self;
+alter table public.trip_days add constraint trip_days_lodging_source_not_self
+  check (lodging_source_day_id is null or lodging_source_day_id <> id);
 alter table public.trip_stops add column if not exists admission_status text;
 alter table public.trip_stops add column if not exists admission_url text;
 alter table public.trip_stops add column if not exists to_transport_mode text

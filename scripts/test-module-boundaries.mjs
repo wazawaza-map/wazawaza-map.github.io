@@ -148,3 +148,34 @@ test("trip form saving validates the title and leaves unchanged records alone", 
   assert.equal(new URL(writes[0].url).pathname, "/rest/v1/trips");
   assert.equal(writes[0].values.title, "Kyoto in autumn");
 });
+
+test("reducing a multi-night stay detaches the formerly covered days", async (t) => {
+  const writes = [];
+  t.mock.method(globalThis, "fetch", async (url, init) => {
+    writes.push({ url, values: JSON.parse(init.body) });
+    return new Response(null, { status: 204 });
+  });
+  const makeDay = (id, dayNumber, source) => ({
+    id, day_number: dayNumber, date: null, overnight_city: null, lodging_name: null, lodging_url: null,
+    lodging_status: null, lodging_source_day_id: source, notes: null, trip_stops: [], trip_day_transports: [],
+  });
+  const trip = {
+    id: 9, title: "Three nights", status: "planning", start_date: null, end_date: null, notes: null,
+    trip_days: [makeDay(1, 1, null), makeDay(2, 2, 1), makeDay(3, 3, 1)], trip_bookings: [],
+    supports_lodging_spans: true, supports_inline_bookings: false, supports_day_destinations: false,
+    supports_daily_itinerary: false, supports_multiple_transports: false, supports_stop_transport: false,
+  };
+  const data = new FormData();
+  data.set("title", trip.title);
+  data.set("status", trip.status);
+  data.set("day_1_lodging_nights", "1");
+  data.set("day_2_lodging_source_day_id", "1");
+  data.set("day_3_lodging_source_day_id", "1");
+  await persistTripForm(options, trip, null, data);
+  const dayWrites = writes.filter(({ url }) => new URL(url).pathname.endsWith("/trip_days"));
+  assert.equal(dayWrites.length, 2);
+  assert.deepEqual(dayWrites.map(({ values }) => values), [
+    { date: null, notes: null, lodging_source_day_id: null },
+    { date: null, notes: null, lodging_source_day_id: null },
+  ]);
+});

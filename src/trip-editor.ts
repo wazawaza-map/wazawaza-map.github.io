@@ -318,8 +318,20 @@ export async function renderTripEditor(options: TripPlannerOptions, tripId: numb
       const addDayTransport = target.closest<HTMLButtonElement>("[data-add-day-transport]");
       const deleteDayTransport = target.closest<HTMLButtonElement>("[data-delete-day-transport]");
       const moveDayTransport = target.closest<HTMLButtonElement>("[data-move-day-transport]");
+      const usePreviousLodging = target.closest<HTMLButtonElement>("[data-use-previous-lodging]");
+      const detachLodging = target.closest<HTMLButtonElement>("[data-detach-lodging]");
       try {
-        if (addDayTransport) {
+        if (usePreviousLodging) {
+          await persistChangedForm();
+          await updateRow(options, "trip_days", Number(usePreviousLodging.dataset.usePreviousLodging), {
+            lodging_source_day_id: Number(usePreviousLodging.dataset.lodgingSourceDay),
+          });
+          await renderTripEditor(options, trip.id, onBack);
+        } else if (detachLodging) {
+          await persistChangedForm();
+          await updateRow(options, "trip_days", Number(detachLodging.dataset.detachLodging), { lodging_source_day_id: null });
+          await renderTripEditor(options, trip.id, onBack);
+        } else if (addDayTransport) {
           await persistChangedForm();
           const day = trip.trip_days.find((item) => item.id === Number(addDayTransport.dataset.addDayTransport));
           if (!day) throw new Error("Не удалось найти день для транспорта.");

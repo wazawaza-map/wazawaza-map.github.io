@@ -1,5 +1,6 @@
 import { escapeHtml } from "./html";
 import { BOOKING_KIND_LABELS, BOOKING_STATUS_LABELS, STATUS_LABELS, TRANSPORT_MODE_LABELS, placeName } from "./trip-format";
+import { hasLodging, lodgingNightCount, lodgingSourceDay } from "./trip-lodging";
 import type { BookingStatus, Trip, TripBooking, TripDay, TripDayTransport, TripDestination, TripPlannerOptions, TripPlannerPlace, TripRouteData, TripStop } from "./trip-types";
 import { tripUiState } from "./trip-ui-state";
 
@@ -139,6 +140,8 @@ function dailyItineraryEditor(trip: Trip, route: TripRouteData | null): string {
           const isLast = index === trip.trip_days.length - 1;
           const transportFrom = isFirst ? trip.home_city || "Токио" : city;
           const transportTo = isFirst ? city : isLast ? trip.home_city || "Токио" : overnight;
+          const lodgingSource = lodgingSourceDay(day, trip.trip_days);
+          const previousLodging = index > 0 ? lodgingSourceDay(trip.trip_days[index - 1], trip.trip_days) : null;
           return `<article class="admin-trip-itinerary-day">
             <header><span>${day.day_number}</span><div><p class="admin-kicker">ДЕНЬ ${day.day_number}</p><h3>${escapeHtml(city)}</h3><time>${escapeHtml(day.date || "Без даты")}</time></div></header>
             <div class="admin-form-grid">
@@ -153,8 +156,10 @@ function dailyItineraryEditor(trip: Trip, route: TripRouteData | null): string {
                 : `<section class="admin-day-transport"><p class="admin-trip-route-setup">Выполните актуальный SQL, чтобы добавить несколько переездов. Пока сохранён старый маршрут: ${escapeHtml(`${transportFrom} → ${transportTo}`)}.</p></section>`}
               ${trip.supports_multiple_transports ? `<button class="secondary admin-add-day-transport" type="button" data-add-day-transport="${day.id}">＋ Добавить транспорт</button>` : ""}
             </div>
-            ${!isLast || day.lodging_name || day.lodging_url || day.lodging_status
-              ? overnightEditor(day, destinations, trip.supports_day_destinations, trip.supports_inline_bookings)
+            ${!isLast || hasLodging(day) || day.lodging_source_day_id
+              ? day.lodging_source_day_id && trip.supports_lodging_spans
+                ? linkedOvernight(day, lodgingSource, destinations)
+                : overnightEditor(day, destinations, trip.supports_day_destinations, trip.supports_inline_bookings, trip.supports_lodging_spans, lodgingNightCount(day, trip.trip_days), Math.max(1, trip.trip_days.length - index - 1), previousLodging && hasLodging(previousLodging) ? previousLodging : null)
               : emptyFinalOvernight(day)}
             <button class="secondary admin-trip-plan-link" type="button" data-scroll-day="${day.id}">↓ Открыть план дня</button>
           </article>`;
@@ -164,13 +169,14 @@ function dailyItineraryEditor(trip: Trip, route: TripRouteData | null): string {
   </details>`;
 }
 
-function overnightEditor(day: TripDay, destinations: TripDestination[], supportsDayDestinations: boolean, supportsInlineBookings: boolean): string {
+function overnightEditor(day: TripDay, destinations: TripDestination[], supportsDayDestinations: boolean, supportsInlineBookings: boolean, supportsLodgingSpans = false, nights = 1, maxNights = 1, previousLodging: TripDay | null = null): string {
   return `<section class="admin-trip-overnight" aria-label="Ночёвка после дня ${day.day_number}">
     <div class="admin-trip-overnight__heading">
       <span class="admin-trip-overnight__icon" aria-hidden="true">☾</span>
       <div><p class="admin-kicker">ПОСЛЕ ДНЯ ${day.day_number}</p><h3>Ночёвка</h3></div>
     </div>
     <div class="admin-form-grid">
+      ${supportsLodgingSpans ? `<label>Количество ночей<select name="day_${day.id}_lodging_nights">${Array.from({ length: maxNights }, (_, index) => index + 1).map((count) => `<option value="${count}"${count === nights ? " selected" : ""}>${count}</option>`).join("")}</select></label>` : ""}
       <label>Город ночёвки / база<select name="day_${day.id}_destination_id" data-day-base="${day.id}"${supportsDayDestinations ? "" : " disabled"}>
         <option value="">Не выбран</option>
         ${destinations.map((destination, index) => `<option value="${destination.id}"${destination.id === day.destination_id ? " selected" : ""}>${index + 1}. ${escapeHtml(destination.name)}</option>`).join("")}
@@ -179,6 +185,20 @@ function overnightEditor(day: TripDay, destinations: TripDestination[], supports
       <label>Ссылка на жильё<input name="day_${day.id}_lodging_url" type="url" value="${escapeHtml(day.lodging_url || "")}"></label>
       <label>Статус жилья<select name="day_${day.id}_lodging_status"${supportsInlineBookings ? "" : " disabled"}>${bookingStatusOptions(day.lodging_status, "Не требуется / без статуса")}</select></label>
     </div>
+    ${supportsLodgingSpans && previousLodging ? `<button class="secondary admin-trip-overnight__same" type="button" data-use-previous-lodging="${day.id}" data-lodging-source-day="${previousLodging.id}">Использовать ту же ночёвку, что вчера</button>` : ""}
+  </section>`;
+}
+
+function linkedOvernight(day: TripDay, source: TripDay, destinations: TripDestination[]): string {
+  const city = destinationName(source.destination_id, destinations, source.overnight_city || "Город не выбран");
+  const details = [source.lodging_name, source.lodging_status ? BOOKING_STATUS_LABELS[source.lodging_status] : null].filter(Boolean).join(" · ");
+  return `<section class="admin-trip-overnight admin-trip-overnight--linked" aria-label="Ночёвка после дня ${day.day_number}">
+    <input type="hidden" name="day_${day.id}_lodging_source_day_id" value="${source.id}">
+    <div class="admin-trip-overnight__heading">
+      <span class="admin-trip-overnight__icon" aria-hidden="true">☾</span>
+      <div><p class="admin-kicker">ПОСЛЕ ДНЯ ${day.day_number}</p><h3>Та же ночёвка · ${escapeHtml(city)}</h3>${details ? `<p>${escapeHtml(details)}</p>` : ""}</div>
+    </div>
+    <button class="secondary" type="button" data-detach-lodging="${day.id}">Изменить только эту ночь</button>
   </section>`;
 }
 

@@ -1,6 +1,7 @@
 import { escapeHtml } from "./html";
 import { BOOKING_STATUS_LABELS, TRANSPORT_MODE_LABELS, placeName, tripDates } from "./trip-format";
 import { tripDayTransports } from "./trip-day-transports";
+import { lodgingSourceDay } from "./trip-lodging";
 import type { Trip, TripDay, TripDestination, TripPlannerPlace, TripRouteData, TripStop } from "./trip-types";
 
 export type TelegramTripMessage = { title: string; text: string };
@@ -45,7 +46,8 @@ function stopLines(stop: TripStop, index: number, places: Map<number, TripPlanne
 function dayMessage(day: TripDay, index: number, trip: Trip, route: TripRouteData | null, places: Map<number, TripPlannerPlace>): TelegramTripMessage {
   const destinations = route?.destinations ?? [];
   const city = destinationName(day.city_destination_id, destinations);
-  const overnight = destinationName(day.destination_id, destinations, day.overnight_city || "");
+  const lodging = lodgingSourceDay(day, trip.trip_days);
+  const overnight = destinationName(lodging.destination_id, destinations, lodging.overnight_city || "");
   const isLast = index === trip.trip_days.length - 1;
   const transports = tripDayTransports(day, index, trip, route);
   const lines = [
@@ -67,11 +69,11 @@ function dayMessage(day: TripDay, index: number, trip: Trip, route: TripRouteDat
       lines.push(...stopLines(stop, stopIndex, places));
     });
   }
-  if (day.lodging_name || day.lodging_status || (!isLast && overnight)) {
-    lines.push("", `🏨 Ночёвка${overnight ? ` · ${overnight}` : ""}`);
-    if (day.lodging_name) lines.push(day.lodging_name);
-    if (day.lodging_status) lines.push(BOOKING_STATUS_LABELS[day.lodging_status]);
-    addLink(lines, "Бронь", day.lodging_url);
+  if (lodging.lodging_name || lodging.lodging_status || (!isLast && overnight)) {
+    lines.push("", `🏨 ${day.lodging_source_day_id ? "Та же ночёвка" : "Ночёвка"}${overnight ? ` · ${overnight}` : ""}`);
+    if (lodging.lodging_name) lines.push(lodging.lodging_name);
+    if (lodging.lodging_status) lines.push(BOOKING_STATUS_LABELS[lodging.lodging_status]);
+    addLink(lines, "Бронь", lodging.lodging_url);
   }
   return { title: `День ${day.day_number} · ${city}`, text: lines.filter((line, lineIndex) => line || lines[lineIndex - 1] !== "").join("\n").trim() };
 }

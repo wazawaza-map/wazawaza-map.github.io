@@ -1,6 +1,7 @@
 import { escapeHtml } from "./html";
 import { BOOKING_STATUS_LABELS, STATUS_LABELS, TRANSPORT_MODE_LABELS, placeName, tripDates } from "./trip-format";
 import { tripDayTransports } from "./trip-day-transports";
+import { lodgingSourceDay } from "./trip-lodging";
 import type { Trip, TripDay, TripDestination, TripPlannerPlace, TripRouteData, TripStop } from "./trip-types";
 
 function destinationName(id: number | null, destinations: TripDestination[], fallback = "Город не выбран"): string {
@@ -48,17 +49,18 @@ function stopBlock(stop: TripStop, index: number, places: Map<number, TripPlanne
 function dayBlock(day: TripDay, index: number, trip: Trip, route: TripRouteData | null, places: Map<number, TripPlannerPlace>): string {
   const destinations = route?.destinations ?? [];
   const city = destinationName(day.city_destination_id, destinations);
-  const overnight = destinationName(day.destination_id, destinations, day.overnight_city || "");
+  const lodging = lodgingSourceDay(day, trip.trip_days);
+  const overnight = destinationName(lodging.destination_id, destinations, lodging.overnight_city || "");
   const isLast = index === trip.trip_days.length - 1;
   const transports = tripDayTransports(day, index, trip, route);
-  const showLodging = Boolean(day.lodging_name || day.lodging_status || (!isLast && overnight));
+  const showLodging = Boolean(lodging.lodging_name || lodging.lodging_status || (!isLast && overnight));
   return `<section class="day">
     <header><span>День ${day.day_number}</span><div><h2>${escapeHtml(city)}</h2><time>${escapeHtml(day.date || "Без даты")}</time></div></header>
     ${transports.map((transport) => {
       const meta = [TRANSPORT_MODE_LABELS[transport.mode], transport.details, timeRange(transport.departure_time, transport.arrival_time), transport.paid ? "Оплачено" : transport.booked ? "Забронировано" : null].filter(Boolean).join(" · ");
       return `<div class="travel"><b>${escapeHtml(transport.from_name || "Откуда?")} → ${escapeHtml(transport.to_name || "Куда?")}</b><p>${escapeHtml(meta)}</p></div>`;
     }).join("")}
-    ${showLodging ? `<div class="lodging"><b>Ночёвка${overnight ? ` · ${escapeHtml(overnight)}` : ""}</b>${day.lodging_name ? `<p>${escapeHtml(day.lodging_name)}</p>` : ""}${day.lodging_status ? `<p>${escapeHtml(BOOKING_STATUS_LABELS[day.lodging_status])}</p>` : ""}</div>` : ""}
+    ${showLodging ? `<div class="lodging"><b>${day.lodging_source_day_id ? "Та же ночёвка" : "Ночёвка"}${overnight ? ` · ${escapeHtml(overnight)}` : ""}</b>${lodging.lodging_name ? `<p>${escapeHtml(lodging.lodging_name)}</p>` : ""}${lodging.lodging_status ? `<p>${escapeHtml(BOOKING_STATUS_LABELS[lodging.lodging_status])}</p>` : ""}</div>` : ""}
     ${day.notes ? `<p class="day-notes">${escapeHtml(day.notes)}</p>` : ""}
     ${day.trip_stops.length ? `<ol class="stops">${day.trip_stops.map((stop, stopIndex) => stopBlock(stop, stopIndex, places)).join("")}</ol>` : `<p class="empty">Места пока не добавлены.</p>`}
   </section>`;

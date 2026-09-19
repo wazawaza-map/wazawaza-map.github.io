@@ -14,17 +14,39 @@ export async function persistTripForm(options: TripDataOptions, trip: Trip, trip
     notes: String(data.get("notes") || "").trim() || null,
     ...(trip.supports_daily_itinerary ? { home_city: String(data.get("home_city") || "").trim() || "Токио" } : {}),
   });
+  const lodgingSourceByDay = new Map<number, number | null>();
+  if (trip.supports_lodging_spans) {
+    trip.trip_days.forEach((day) => lodgingSourceByDay.set(day.id, Number(data.get(`day_${day.id}_lodging_source_day_id`)) || null));
+    trip.trip_days.forEach((day, index) => {
+      const rawNights = data.get(`day_${day.id}_lodging_nights`);
+      if (rawNights === null) return;
+      const nights = Math.max(1, Number(rawNights) || 1);
+      trip.trip_days.forEach((candidate) => {
+        if (lodgingSourceByDay.get(candidate.id) === day.id) lodgingSourceByDay.set(candidate.id, null);
+      });
+      lodgingSourceByDay.set(day.id, null);
+      for (let offset = 1; offset < nights && index + offset < trip.trip_days.length; offset += 1) {
+        lodgingSourceByDay.set(trip.trip_days[index + offset].id, day.id);
+      }
+    });
+  }
   for (const day of trip.trip_days) {
+    const lodgingSourceDayId = lodgingSourceByDay.get(day.id) ?? null;
     const dayValues: Record<string, unknown> = {
       date: String(data.get(`day_${day.id}_date`) || "") || null,
-      lodging_name: String(data.get(`day_${day.id}_lodging_name`) || "").trim() || null,
-      lodging_url: String(data.get(`day_${day.id}_lodging_url`) || "").trim() || null,
       notes: String(data.get(`day_${day.id}_notes`) || "").trim() || null,
+      ...(trip.supports_lodging_spans ? { lodging_source_day_id: lodgingSourceDayId } : {}),
     };
-    if (trip.supports_inline_bookings) {
+    if (!lodgingSourceDayId && data.has(`day_${day.id}_lodging_name`)) {
+      dayValues.lodging_name = String(data.get(`day_${day.id}_lodging_name`) || "").trim() || null;
+    }
+    if (!lodgingSourceDayId && data.has(`day_${day.id}_lodging_url`)) {
+      dayValues.lodging_url = String(data.get(`day_${day.id}_lodging_url`) || "").trim() || null;
+    }
+    if (trip.supports_inline_bookings && !lodgingSourceDayId && data.has(`day_${day.id}_lodging_status`)) {
       dayValues.lodging_status = String(data.get(`day_${day.id}_lodging_status`) || "") || null;
     }
-    if (trip.supports_day_destinations) {
+    if (trip.supports_day_destinations && !lodgingSourceDayId && data.has(`day_${day.id}_destination_id`)) {
       const destinationId = Number(data.get(`day_${day.id}_destination_id`)) || null;
       dayValues.destination_id = destinationId;
       const destination = destinations.find((item) => item.id === destinationId);

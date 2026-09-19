@@ -182,7 +182,10 @@ button, input, select { font: inherit; }
 .admin-trip-overnight__heading { display: flex; gap: 12px; align-items: center; }
 .admin-trip-overnight__icon { display: grid; width: 34px; height: 34px; flex: none; place-items: center; border-radius: 50%; background: #245e82; color: #fff; font-size: 24px; }
 .admin-trip-overnight__heading h3 { margin: 2px 0 0; font-family: Georgia, serif; font-size: 20px; font-weight: 500; }
+.admin-trip-overnight__heading p:last-child { margin: 5px 0 0; color: #5d5951; font-size: 12px; }
 .admin-trip-overnight .admin-kicker { margin: 0; }
+.admin-trip-overnight__same { justify-self: start; }
+.admin-trip-overnight--linked { grid-template-columns: minmax(0, 1fr) auto; align-items: center; background: #e6eadb; }
 .admin-trip-day { padding: 22px; border: 1px solid #222; background: #f4f1e9; }
 .admin-trip-day__header { display: flex; justify-content: space-between; gap: 20px; align-items: start; margin-bottom: 18px; padding-bottom: 14px; border-bottom: 1px solid #817c72; }
 .admin-trip-day__header h2 { margin: 0; font-family: Georgia, serif; font-size: 27px; font-weight: 500; }

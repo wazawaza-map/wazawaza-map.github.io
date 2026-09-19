@@ -59,6 +59,7 @@ export type TripDay = {
   lodging_name: string | null;
   lodging_url: string | null;
   lodging_status: BookingStatus | null;
+  lodging_source_day_id: number | null;
   transport_mode: TripLeg["mode"];
   transport_details: string | null;
   transport_booking_url: string | null;
@@ -137,6 +138,7 @@ export type Trip = {
   supports_daily_itinerary: boolean;
   supports_stop_transport: boolean;
   supports_multiple_transports: boolean;
+  supports_lodging_spans: boolean;
 };
 
 export type TripPlannerOptions = {
