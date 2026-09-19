@@ -185,6 +185,15 @@ button, input, select { font: inherit; }
 .admin-trip-stop__position { display: grid; width: 28px; height: 28px; place-items: center; border-radius: 50%; background: #222; color: #fff; font-size: 12px; }
 .admin-trip-stop__content strong { display: block; margin-bottom: 9px; }
 .admin-trip-stop__fields { display: grid; grid-template-columns: 110px minmax(180px, 1fr) minmax(145px, .55fr); gap: 10px; }
+.admin-stop-transport-control { margin-top: 12px; }
+.admin-stop-transport-add[hidden], .admin-stop-transport[hidden] { display: none; }
+.admin-stop-transport { padding: 12px; border: 1px solid #b8c3c8; background: #eef2f3; }
+.admin-stop-transport > header { display: flex; justify-content: space-between; gap: 12px; align-items: center; margin-bottom: 12px; }
+.admin-stop-transport > header strong { margin: 0; }
+.admin-stop-transport > header button { padding: 6px 9px; }
+.admin-stop-transport__direction { display: grid; grid-template-columns: 110px minmax(180px, 1fr) 110px 110px; gap: 9px; align-items: end; }
+.admin-stop-transport__direction + .admin-stop-transport__direction { margin-top: 10px; padding-top: 10px; border-top: 1px solid #b8c3c8; }
+.admin-stop-transport__direction h4 { margin: 0 0 11px; font-family: Georgia, serif; font-size: 18px; font-weight: 500; }
 .admin-trip-stop__actions { display: flex; gap: 4px; }
 .admin-trip-stop__actions button { min-width: 34px; padding: 6px 8px; }
 .admin-trip-editor button.secondary { background: transparent; color: #222; }
@@ -216,6 +225,8 @@ button, input, select { font: inherit; }
   .admin-trip-stop { grid-template-columns: 30px minmax(0, 1fr); }
   .admin-trip-stop__actions { grid-column: 2; }
   .admin-trip-stop__fields { grid-template-columns: 1fr; }
+  .admin-stop-transport__direction { grid-template-columns: 1fr; }
+  .admin-stop-transport > header { align-items: stretch; flex-direction: column; }
   .admin-trip-editor__footer > div { display: grid; grid-template-columns: 1fr; }
   .admin-trip-map-section { grid-template-columns: 1fr; }
   .admin-trip-map { height: 55vh; min-height: 320px; }

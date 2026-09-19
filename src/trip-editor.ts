@@ -255,6 +255,19 @@ export async function renderTripEditor(options: TripPlannerOptions, tripId: numb
         document.querySelector(`#trip-day-${Number(planLink.dataset.scrollDay)}`)?.scrollIntoView({ behavior: "smooth", block: "start" });
         return;
       }
+      const addStopTransport = target.closest<HTMLButtonElement>("[data-add-stop-transport]");
+      const removeStopTransport = target.closest<HTMLButtonElement>("[data-remove-stop-transport]");
+      if (addStopTransport || removeStopTransport) {
+        const stopId = Number(addStopTransport?.dataset.addStopTransport || removeStopTransport?.dataset.removeStopTransport);
+        const enabled = Boolean(addStopTransport);
+        const flag = form.elements.namedItem(`stop_${stopId}_transport_enabled`) as HTMLInputElement | null;
+        const panel = form.querySelector<HTMLElement>(`[data-stop-transport-panel="${stopId}"]`);
+        const addButton = form.querySelector<HTMLButtonElement>(`[data-add-stop-transport="${stopId}"]`);
+        if (flag) flag.value = enabled ? "1" : "0";
+        if (panel) panel.hidden = !enabled;
+        if (addButton) addButton.hidden = enabled;
+        return;
+      }
       const add = target.closest<HTMLButtonElement>("[data-add-stop]");
       const deleteStop = target.closest<HTMLButtonElement>("[data-delete-stop]");
       const deleteDay = target.closest<HTMLButtonElement>("[data-delete-day]");

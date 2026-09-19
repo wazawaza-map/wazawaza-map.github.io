@@ -21,6 +21,14 @@ export type TripStop = {
   notes: string | null;
   admission_status: BookingStatus | null;
   admission_url: string | null;
+  to_transport_mode: TripLeg["mode"] | null;
+  to_transport_details: string | null;
+  to_departure_time: string | null;
+  to_arrival_time: string | null;
+  back_transport_mode: TripLeg["mode"] | null;
+  back_transport_details: string | null;
+  back_departure_time: string | null;
+  back_arrival_time: string | null;
 };
 
 export type BookingStatus = "planned" | "booked" | "paid";
@@ -110,6 +118,7 @@ export type Trip = {
   supports_day_destinations: boolean;
   supports_inline_bookings: boolean;
   supports_daily_itinerary: boolean;
+  supports_stop_transport: boolean;
 };
 
 export type TripPlannerOptions = {

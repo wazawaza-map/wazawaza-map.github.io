@@ -23,11 +23,38 @@ function bookingStatusOptions(selected: BookingStatus | null, emptyLabel: string
   ).join("")}`;
 }
 
+function stopTransportEditor(stop: TripStop, supported: boolean): string {
+  if (!supported) return "";
+  const enabled = Boolean(stop.to_transport_mode || stop.back_transport_mode);
+  return `<div class="admin-stop-transport-control">
+    <input type="hidden" name="stop_${stop.id}_transport_enabled" value="${enabled ? "1" : "0"}">
+    <button class="secondary admin-stop-transport-add" type="button" data-add-stop-transport="${stop.id}"${enabled ? " hidden" : ""}>＋ Транспорт туда и обратно</button>
+    <section class="admin-stop-transport" data-stop-transport-panel="${stop.id}"${enabled ? "" : " hidden"}>
+      <header><strong>Транспорт к месту и обратно</strong><button class="danger" type="button" data-remove-stop-transport="${stop.id}">Убрать транспорт</button></header>
+      <div class="admin-stop-transport__direction">
+        <h4>Туда</h4>
+        <label>Тип<select name="stop_${stop.id}_to_transport_mode">${selectOptions(TRANSPORT_MODE_LABELS, stop.to_transport_mode || "train")}</select></label>
+        <label>Детали<input name="stop_${stop.id}_to_transport_details" value="${escapeHtml(stop.to_transport_details || "")}" placeholder="Линия, станция, пересадка…"></label>
+        <label>Отправление<input name="stop_${stop.id}_to_departure_time" type="time" value="${escapeHtml((stop.to_departure_time || "").slice(0, 5))}"></label>
+        <label>Прибытие<input name="stop_${stop.id}_to_arrival_time" type="time" value="${escapeHtml((stop.to_arrival_time || "").slice(0, 5))}"></label>
+      </div>
+      <div class="admin-stop-transport__direction">
+        <h4>Обратно / дальше</h4>
+        <label>Тип<select name="stop_${stop.id}_back_transport_mode">${selectOptions(TRANSPORT_MODE_LABELS, stop.back_transport_mode || "train")}</select></label>
+        <label>Детали<input name="stop_${stop.id}_back_transport_details" value="${escapeHtml(stop.back_transport_details || "")}" placeholder="До отеля или следующего места…"></label>
+        <label>Отправление<input name="stop_${stop.id}_back_departure_time" type="time" value="${escapeHtml((stop.back_departure_time || "").slice(0, 5))}"></label>
+        <label>Прибытие<input name="stop_${stop.id}_back_arrival_time" type="time" value="${escapeHtml((stop.back_arrival_time || "").slice(0, 5))}"></label>
+      </div>
+    </section>
+  </div>`;
+}
+
 function dayEditor(
   day: TripDay,
   days: TripDay[],
   places: Map<number, TripPlannerPlace>,
   supportsInlineBookings: boolean,
+  supportsStopTransport: boolean,
 ): string {
   return `<section class="admin-trip-day" id="trip-day-${day.id}" data-day-id="${day.id}">
     <header class="admin-trip-day__header">
@@ -52,6 +79,7 @@ function dayEditor(
             <label>Входной билет<select name="stop_${stop.id}_admission_status"${supportsInlineBookings ? "" : " disabled"}>${bookingStatusOptions(stop.admission_status, "Не требуется")}</select></label>
             <label>Ссылка на билет<input name="stop_${stop.id}_admission_url" type="url" value="${escapeHtml(stop.admission_url || "")}"${supportsInlineBookings ? "" : " disabled"}></label>
           </div>
+          ${stopTransportEditor(stop, supportsStopTransport)}
         </div>
         <div class="admin-trip-stop__actions">
           <button type="button" data-move-stop="up" data-stop-id="${stop.id}"${index === 0 ? " disabled" : ""}>↑</button>
@@ -276,7 +304,7 @@ export function tripEditorPage(options: TripPlannerOptions, trip: Trip, tripRout
       <datalist id="trip-place-options">${placeOptions}</datalist>
       ${trip.supports_day_destinations ? "" : `<p class="admin-trip-route-setup">Повторно выполните актуальный SQL, чтобы привязать дни к городам.</p>`}
       ${trip.supports_inline_bookings ? "" : `<p class="admin-trip-route-setup">Повторно выполните актуальный SQL, чтобы отмечать жильё и входные билеты прямо в днях.</p>`}
-      <div class="admin-trip-days">${trip.trip_days.map(day => dayEditor(day, trip.trip_days, places, trip.supports_inline_bookings)).join("")}</div>
+      <div class="admin-trip-days">${trip.trip_days.map(day => dayEditor(day, trip.trip_days, places, trip.supports_inline_bookings, trip.supports_stop_transport)).join("")}</div>
       <section class="admin-bookings-section">
         <header><div><p class="admin-kicker">ЧЕКЛИСТ</p><h2>Прочие дела</h2></div><span>${trip.trip_bookings.filter((item) => item.status !== "planned").length} из ${trip.trip_bookings.length}</span></header>
         ${trip.trip_bookings.some((item) => item.kind !== "other") ? `<p class="admin-trip-route-setup">Здесь сохранены старые непривязанные записи. Жильё, транспорт и входные билеты теперь удобнее отмечать прямо в соответствующем дне.</p>` : ""}

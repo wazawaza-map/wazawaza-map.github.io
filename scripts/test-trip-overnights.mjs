@@ -59,3 +59,34 @@ test("a saved final-night hotel remains editable", () => {
   assert.match(html, /aria-label="Ночёвка после дня 1"/);
   assert.match(html, /name="day_15_lodging_name" value="Airport hotel"/);
 });
+
+test("transport for an individual place is optional and expands only when saved", () => {
+  const emptyTransport = {
+    id: 81, place_id: null, position: 1, custom_name: "Rabbit park", planned_time: null, notes: null,
+    admission_status: null, admission_url: null, to_transport_mode: null, to_transport_details: null,
+    to_departure_time: null, to_arrival_time: null, back_transport_mode: null, back_transport_details: null,
+    back_departure_time: null, back_arrival_time: null,
+  };
+  const baseTrip = {
+    id: 4, title: "Transport", status: "planning", start_date: null, end_date: null, notes: null,
+    home_city: "Токио", supports_daily_itinerary: true, supports_day_destinations: true,
+    supports_inline_bookings: true, supports_stop_transport: true, trip_bookings: [],
+  };
+  const hiddenHtml = tripEditorPage({ places: [] }, {
+    ...baseTrip, trip_days: [day(20, 1, 13, null, { trip_stops: [emptyTransport] })],
+  }, route, new Map());
+  assert.match(hiddenHtml, /data-add-stop-transport="81"/);
+  assert.match(hiddenHtml, /data-stop-transport-panel="81" hidden/);
+  assert.match(hiddenHtml, /name="stop_81_transport_enabled" value="0"/);
+
+  const visibleHtml = tripEditorPage({ places: [] }, {
+    ...baseTrip, trip_days: [day(20, 1, 13, null, { trip_stops: [{
+      ...emptyTransport, to_transport_mode: "bus", to_transport_details: "Komatsu station",
+      back_transport_mode: "train", back_transport_details: "To Toyama",
+    }] })],
+  }, route, new Map());
+  assert.match(visibleHtml, /name="stop_81_transport_enabled" value="1"/);
+  assert.match(visibleHtml, /name="stop_81_to_transport_details" value="Komatsu station"/);
+  assert.match(visibleHtml, /name="stop_81_back_transport_details" value="To Toyama"/);
+  assert.ok(!visibleHtml.includes('data-stop-transport-panel="81" hidden'));
+});

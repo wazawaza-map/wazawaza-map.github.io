@@ -91,6 +91,16 @@ alter table public.trip_days add column if not exists destination_id bigint refe
 alter table public.trip_days add column if not exists lodging_status text;
 alter table public.trip_stops add column if not exists admission_status text;
 alter table public.trip_stops add column if not exists admission_url text;
+alter table public.trip_stops add column if not exists to_transport_mode text
+  check (to_transport_mode is null or to_transport_mode in ('train', 'bus', 'car', 'flight', 'ferry', 'walk', 'other'));
+alter table public.trip_stops add column if not exists to_transport_details text;
+alter table public.trip_stops add column if not exists to_departure_time time;
+alter table public.trip_stops add column if not exists to_arrival_time time;
+alter table public.trip_stops add column if not exists back_transport_mode text
+  check (back_transport_mode is null or back_transport_mode in ('train', 'bus', 'car', 'flight', 'ferry', 'walk', 'other'));
+alter table public.trip_stops add column if not exists back_transport_details text;
+alter table public.trip_stops add column if not exists back_departure_time time;
+alter table public.trip_stops add column if not exists back_arrival_time time;
 alter table public.trip_destinations add column if not exists trip_day_id bigint references public.trip_days(id) on delete set null;
 alter table public.trips add column if not exists home_city text not null default 'Токио';
 alter table public.trip_days add column if not exists city_destination_id bigint references public.trip_destinations(id) on delete set null;

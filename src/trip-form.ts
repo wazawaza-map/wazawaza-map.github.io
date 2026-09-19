@@ -52,6 +52,28 @@ export async function persistTripForm(options: TripDataOptions, trip: Trip, trip
         stopValues.admission_status = String(data.get(`stop_${stop.id}_admission_status`) || "") || null;
         stopValues.admission_url = String(data.get(`stop_${stop.id}_admission_url`) || "").trim() || null;
       }
+      if (trip.supports_stop_transport) {
+        const enabled = data.get(`stop_${stop.id}_transport_enabled`) === "1";
+        Object.assign(stopValues, enabled ? {
+          to_transport_mode: data.get(`stop_${stop.id}_to_transport_mode`) || "train",
+          to_transport_details: String(data.get(`stop_${stop.id}_to_transport_details`) || "").trim() || null,
+          to_departure_time: String(data.get(`stop_${stop.id}_to_departure_time`) || "") || null,
+          to_arrival_time: String(data.get(`stop_${stop.id}_to_arrival_time`) || "") || null,
+          back_transport_mode: data.get(`stop_${stop.id}_back_transport_mode`) || "train",
+          back_transport_details: String(data.get(`stop_${stop.id}_back_transport_details`) || "").trim() || null,
+          back_departure_time: String(data.get(`stop_${stop.id}_back_departure_time`) || "") || null,
+          back_arrival_time: String(data.get(`stop_${stop.id}_back_arrival_time`) || "") || null,
+        } : {
+          to_transport_mode: null,
+          to_transport_details: null,
+          to_departure_time: null,
+          to_arrival_time: null,
+          back_transport_mode: null,
+          back_transport_details: null,
+          back_departure_time: null,
+          back_arrival_time: null,
+        });
+      }
       await updateRowIfChanged(options, "trip_stops", stop.id, stop, stopValues);
     }
   }
