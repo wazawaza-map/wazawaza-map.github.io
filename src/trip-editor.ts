@@ -1,6 +1,7 @@
 import { escapeHtml } from "./html";
 import { compactStopPositions, deleteRow, getTripRoute, getTrips, insertRow, renumberRows, updateRow } from "./trip-api";
 import { persistTripForm } from "./trip-form";
+import { openTripExportPreview, writeTripExportPreview } from "./trip-export";
 import { resolvePlaceId, setupMessage } from "./trip-format";
 import { destroyTripMap, initializeTripMap } from "./trip-map";
 import type { TripBooking, TripDay, TripDestination, TripLeg, TripPlannerOptions, TripStop } from "./trip-types";
@@ -26,6 +27,7 @@ export async function renderTripEditor(options: TripPlannerOptions, tripId: numb
     const destinations = tripRoute?.destinations ?? [];
     const legs = tripRoute?.legs ?? [];
     document.querySelector("[data-back-to-trips]")?.addEventListener("click", () => void onBack());
+    document.querySelector("[data-export-trip]")?.addEventListener("click", () => void exportCurrentTrip());
     document.querySelector("#logout")?.addEventListener("click", () => {
       destroyTripMap();
       options.onLogout();
@@ -35,6 +37,24 @@ export async function renderTripEditor(options: TripPlannerOptions, tripId: numb
 
     function persistChangedForm(): Promise<void> {
       return persistTripForm(options, trip, tripRoute, new FormData(form));
+    }
+
+    async function exportCurrentTrip(): Promise<void> {
+      if (error) error.textContent = "";
+      let preview: Window | undefined;
+      try {
+        preview = openTripExportPreview();
+        await persistChangedForm();
+        const savedTrip = (await getTrips(options, trip.id))[0];
+        if (!savedTrip) throw new Error("Поездка не найдена после сохранения.");
+        writeTripExportPreview(preview, savedTrip, await getTripRoute(options, trip.id), places);
+      } catch (exportError) {
+        preview?.close();
+        if (error) {
+          error.textContent = setupMessage(exportError);
+          error.scrollIntoView({ behavior: "smooth", block: "center" });
+        }
+      }
     }
 
     async function reconcileRouteLegs(orderedDestinations: TripDestination[]): Promise<void> {

@@ -5,6 +5,7 @@ import { createServer } from "vite";
 const server = await createServer({ configFile: false, optimizeDeps: { noDiscovery: true, include: [] }, server: { middlewareMode: true, watch: null, hmr: false, ws: false }, appType: "custom" });
 after(() => server.close());
 const { tripEditorPage } = await server.ssrLoadModule("/src/trip-view.ts");
+const { buildTripExportHtml } = await server.ssrLoadModule("/src/trip-export.ts");
 
 const destinations = [
   { id: 13, name: "Комацу", position: 1, trip_day_id: 10 },
@@ -89,4 +90,29 @@ test("transport for an individual place is optional and expands only when saved"
   assert.match(visibleHtml, /name="stop_81_to_transport_details" value="Komatsu station"/);
   assert.match(visibleHtml, /name="stop_81_back_transport_details" value="To Toyama"/);
   assert.ok(!visibleHtml.includes('data-stop-transport-panel="81" hidden'));
+});
+
+test("print export includes the itinerary but omits private booking links and notes", () => {
+  const stop = {
+    id: 81, place_id: null, position: 1, custom_name: "Rabbit <park>", planned_time: "09:30:00", notes: "Bring carrots",
+    admission_status: "paid", admission_url: "https://tickets.invalid/private", to_transport_mode: "bus",
+    to_transport_details: "From station", to_departure_time: "08:45:00", to_arrival_time: "09:20:00",
+    back_transport_mode: "train", back_transport_details: "To hotel", back_departure_time: null, back_arrival_time: null,
+  };
+  const trip = {
+    id: 5, title: "Trip <draft>", status: "booked", start_date: "2026-10-10", end_date: null,
+    notes: "Personal plan", home_city: "Токио", supports_daily_itinerary: true,
+    supports_day_destinations: true, supports_inline_bookings: true, supports_stop_transport: true,
+    trip_days: [day(20, 1, 13, 13, { trip_stops: [stop], lodging_url: "https://hotel.invalid/private" })],
+    trip_bookings: [{ id: 1, kind: "other", title: "Buy insurance", status: "planned", date: null, url: "https://secret.invalid", notes: "CONFIRMATION-123", position: 1 }],
+  };
+  const html = buildTripExportHtml(trip, route, new Map());
+  assert.ok(html.includes("Trip &lt;draft&gt;"));
+  assert.ok(html.includes("Rabbit &lt;park&gt;"));
+  assert.ok(html.includes("Туда:</b> Автобус · From station · 08:45–09:20"));
+  assert.ok(html.includes("Buy insurance"));
+  assert.ok(!html.includes("tickets.invalid"));
+  assert.ok(!html.includes("hotel.invalid"));
+  assert.ok(!html.includes("secret.invalid"));
+  assert.ok(!html.includes("CONFIRMATION-123"));
 });
