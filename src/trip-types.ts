@@ -33,6 +33,20 @@ export type TripStop = {
   back_arrival_time: string | null;
 };
 
+export type TripDayTransport = {
+  id: number;
+  position: number;
+  mode: TripLeg["mode"];
+  from_name: string | null;
+  to_name: string | null;
+  details: string | null;
+  booking_url: string | null;
+  departure_time: string | null;
+  arrival_time: string | null;
+  booked: boolean;
+  paid: boolean;
+};
+
 export type BookingStatus = "planned" | "booked" | "paid";
 
 export type TripDay = {
@@ -54,6 +68,7 @@ export type TripDay = {
   transport_paid: boolean;
   notes: string | null;
   trip_stops: TripStop[];
+  trip_day_transports: TripDayTransport[];
 };
 
 export type TripBooking = {
@@ -121,6 +136,7 @@ export type Trip = {
   supports_inline_bookings: boolean;
   supports_daily_itinerary: boolean;
   supports_stop_transport: boolean;
+  supports_multiple_transports: boolean;
 };
 
 export type TripPlannerOptions = {

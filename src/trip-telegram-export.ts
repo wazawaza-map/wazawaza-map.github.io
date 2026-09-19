@@ -1,5 +1,6 @@
 import { escapeHtml } from "./html";
 import { BOOKING_STATUS_LABELS, TRANSPORT_MODE_LABELS, placeName, tripDates } from "./trip-format";
+import { tripDayTransports } from "./trip-day-transports";
 import type { Trip, TripDay, TripDestination, TripPlannerPlace, TripRouteData, TripStop } from "./trip-types";
 
 export type TelegramTripMessage = { title: string; text: string };
@@ -45,25 +46,19 @@ function dayMessage(day: TripDay, index: number, trip: Trip, route: TripRouteDat
   const destinations = route?.destinations ?? [];
   const city = destinationName(day.city_destination_id, destinations);
   const overnight = destinationName(day.destination_id, destinations, day.overnight_city || "");
-  const isFirst = index === 0;
   const isLast = index === trip.trip_days.length - 1;
-  const from = isFirst ? trip.home_city || "Токио" : city;
-  const to = isFirst ? city : isLast ? trip.home_city || "Токио" : overnight;
-  const transport = [
-    TRANSPORT_MODE_LABELS[day.transport_mode || "train"],
-    day.transport_details,
-    timeRange(day.transport_departure_time, day.transport_arrival_time),
-  ].filter(Boolean).join(" · ");
+  const transports = tripDayTransports(day, index, trip, route);
   const lines = [
     `🗺 ${trip.title}`,
     `День ${day.day_number} · ${day.date || "без даты"} · ${city}`,
-    "",
-    `🚆 ${from} → ${to}`,
-    transport,
   ];
-  if (day.transport_paid) lines.push("✅ Транспорт оплачен");
-  else if (day.transport_booked) lines.push("✅ Транспорт забронирован");
-  addLink(lines, "Билет / бронь", day.transport_booking_url);
+  transports.forEach((transport, transportIndex) => {
+    lines.push("", `🚆 ${transportIndex + 1}. ${transport.from_name || "Откуда?"} → ${transport.to_name || "Куда?"}`);
+    lines.push([TRANSPORT_MODE_LABELS[transport.mode], transport.details, timeRange(transport.departure_time, transport.arrival_time)].filter(Boolean).join(" · "));
+    if (transport.paid) lines.push("✅ Транспорт оплачен");
+    else if (transport.booked) lines.push("✅ Транспорт забронирован");
+    addLink(lines, "Билет / бронь", transport.booking_url);
+  });
   if (day.notes) lines.push("", `📝 ${day.notes}`);
   if (day.trip_stops.length) {
     lines.push("");

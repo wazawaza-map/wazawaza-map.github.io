@@ -5,7 +5,7 @@ import { openTripExportPreview, writeTripExportPreview } from "./trip-export";
 import { buildTelegramTripMessages, showTelegramTripExport } from "./trip-telegram-export";
 import { resolvePlaceId, setupMessage } from "./trip-format";
 import { destroyTripMap, initializeTripMap } from "./trip-map";
-import type { TripBooking, TripDay, TripDestination, TripLeg, TripPlannerOptions, TripStop } from "./trip-types";
+import type { TripBooking, TripDay, TripDayTransport, TripDestination, TripLeg, TripPlannerOptions, TripStop } from "./trip-types";
 import { tripUiState } from "./trip-ui-state";
 import { tripEditorPage } from "./trip-view";
 
@@ -315,8 +315,49 @@ export async function renderTripEditor(options: TripPlannerOptions, tripId: numb
       const moveDestination = target.closest<HTMLButtonElement>("[data-move-destination]");
       const placeDestination = target.closest<HTMLButtonElement>("[data-place-destination]");
       const deleteDestination = target.closest<HTMLButtonElement>("[data-delete-destination]");
+      const addDayTransport = target.closest<HTMLButtonElement>("[data-add-day-transport]");
+      const deleteDayTransport = target.closest<HTMLButtonElement>("[data-delete-day-transport]");
+      const moveDayTransport = target.closest<HTMLButtonElement>("[data-move-day-transport]");
       try {
-        if (moveDestination) {
+        if (addDayTransport) {
+          await persistChangedForm();
+          const day = trip.trip_days.find((item) => item.id === Number(addDayTransport.dataset.addDayTransport));
+          if (!day) throw new Error("Не удалось найти день для транспорта.");
+          const dayIndex = trip.trip_days.indexOf(day);
+          const lastTransport = day.trip_day_transports.at(-1);
+          const city = destinations.find((item) => item.id === day.city_destination_id)?.name || "";
+          const overnight = destinations.find((item) => item.id === day.destination_id)?.name || day.overnight_city || "";
+          const isFirst = dayIndex === 0;
+          const isLast = dayIndex === trip.trip_days.length - 1;
+          await insertRow<TripDayTransport>(options, "trip_day_transports", {
+            trip_day_id: day.id,
+            position: day.trip_day_transports.length + 1,
+            mode: "train",
+            from_name: lastTransport?.to_name || (isFirst ? trip.home_city || "Токио" : city) || null,
+            to_name: lastTransport ? null : (isFirst ? city : isLast ? trip.home_city || "Токио" : overnight) || null,
+          });
+          await renderTripEditor(options, trip.id, onBack);
+        } else if (deleteDayTransport) {
+          await persistChangedForm();
+          const transportId = Number(deleteDayTransport.dataset.deleteDayTransport);
+          const day = trip.trip_days.find((item) => item.trip_day_transports.some((transport) => transport.id === transportId));
+          if (!day) return;
+          await deleteRow(options, "trip_day_transports", transportId);
+          await renumberRows(options, "trip_day_transports", day.trip_day_transports.filter((transport) => transport.id !== transportId), "position");
+          await renderTripEditor(options, trip.id, onBack);
+        } else if (moveDayTransport) {
+          await persistChangedForm();
+          const transportId = Number(moveDayTransport.dataset.dayTransportId);
+          const day = trip.trip_days.find((item) => item.trip_day_transports.some((transport) => transport.id === transportId));
+          if (!day) return;
+          const index = day.trip_day_transports.findIndex((transport) => transport.id === transportId);
+          const otherIndex = moveDayTransport.dataset.moveDayTransport === "up" ? index - 1 : index + 1;
+          const reordered = [...day.trip_day_transports];
+          if (!reordered[index] || !reordered[otherIndex]) return;
+          [reordered[index], reordered[otherIndex]] = [reordered[otherIndex], reordered[index]];
+          await renumberRows(options, "trip_day_transports", reordered, "position");
+          await renderTripEditor(options, trip.id, onBack);
+        } else if (moveDestination) {
           if (!tripRoute) throw new Error("Сначала выполните актуальный scripts/trip_planner_setup.sql в Supabase.");
           const destinationId = Number(moveDestination.dataset.destinationId);
           const index = destinations.findIndex((item) => item.id === destinationId);

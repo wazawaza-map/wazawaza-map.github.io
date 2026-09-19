@@ -34,15 +34,23 @@ export async function persistTripForm(options: TripDataOptions, trip: Trip, trip
     }
     if (trip.supports_daily_itinerary) {
       dayValues.city_destination_id = Number(data.get(`day_${day.id}_city_destination_id`)) || null;
-      dayValues.transport_mode = data.get(`day_${day.id}_transport_mode`) || "train";
-      dayValues.transport_details = String(data.get(`day_${day.id}_transport_details`) || "").trim() || null;
-      dayValues.transport_booking_url = String(data.get(`day_${day.id}_transport_booking_url`) || "").trim() || null;
-      dayValues.transport_departure_time = String(data.get(`day_${day.id}_transport_departure_time`) || "") || null;
-      dayValues.transport_arrival_time = String(data.get(`day_${day.id}_transport_arrival_time`) || "") || null;
-      dayValues.transport_booked = data.get(`day_${day.id}_transport_booked`) === "on";
-      dayValues.transport_paid = data.get(`day_${day.id}_transport_paid`) === "on";
     }
     await updateRowIfChanged(options, "trip_days", day.id, day, dayValues);
+    if (trip.supports_multiple_transports) {
+      for (const transport of day.trip_day_transports) {
+        await updateRowIfChanged(options, "trip_day_transports", transport.id, transport, {
+          mode: data.get(`day_transport_${transport.id}_mode`) || "train",
+          from_name: String(data.get(`day_transport_${transport.id}_from_name`) || "").trim() || null,
+          to_name: String(data.get(`day_transport_${transport.id}_to_name`) || "").trim() || null,
+          details: String(data.get(`day_transport_${transport.id}_details`) || "").trim() || null,
+          booking_url: String(data.get(`day_transport_${transport.id}_booking_url`) || "").trim() || null,
+          departure_time: String(data.get(`day_transport_${transport.id}_departure_time`) || "") || null,
+          arrival_time: String(data.get(`day_transport_${transport.id}_arrival_time`) || "") || null,
+          booked: data.get(`day_transport_${transport.id}_booked`) === "on",
+          paid: data.get(`day_transport_${transport.id}_paid`) === "on",
+        });
+      }
+    }
     for (const stop of day.trip_stops) {
       const stopValues: Record<string, unknown> = {
         planned_time: String(data.get(`stop_${stop.id}_planned_time`) || "") || null,

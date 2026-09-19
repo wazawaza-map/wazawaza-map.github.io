@@ -126,6 +126,13 @@ button, input, select { font: inherit; }
 .admin-trip-itinerary-day > header h3 { display: inline; margin: 0 10px 0 0; font-family: Georgia, serif; font-size: 24px; font-weight: 500; }
 .admin-trip-itinerary-day > header time { color: #625e56; font-size: 12px; font-weight: 700; }
 .admin-trip-itinerary-day .admin-trip-overnight { margin: 16px 0 0; border: 1px solid #c8c3b8; }
+.admin-day-transports { display: grid; gap: 10px; margin-top: 16px; }
+.admin-day-transport { padding: 14px; border: 1px solid #b8c3c8; background: #eef2f3; }
+.admin-day-transport > header { display: flex; justify-content: space-between; gap: 14px; align-items: start; margin-bottom: 12px; padding-bottom: 10px; border-bottom: 1px solid #b8c3c8; }
+.admin-day-transport > header h4 { margin: 3px 0 0; font: 500 19px Georgia,serif; }
+.admin-day-transport > header > div:last-child { display: flex; gap: 5px; }
+.admin-day-transport > header button { min-width: 34px; padding: 6px 8px; }
+.admin-add-day-transport { justify-self: start; }
 .admin-trip-plan-link { margin-top: 16px; background: transparent !important; color: #222 !important; }
 .admin-trip-route-section--technical { border-color: #817c72; background: #ece9e1; }
 .admin-trip-destinations { display: grid; gap: 0; }
@@ -238,6 +245,7 @@ button, input, select { font: inherit; }
   .admin-trip-stop__fields { grid-template-columns: 1fr; }
   .admin-stop-transport__direction { grid-template-columns: 1fr; }
   .admin-stop-transport > header { align-items: stretch; flex-direction: column; }
+  .admin-day-transport > header { flex-direction: column; }
   .admin-trip-editor__footer > div { display: grid; grid-template-columns: 1fr; }
   .admin-trip-map-section { grid-template-columns: 1fr; }
   .admin-trip-map { height: 55vh; min-height: 320px; }

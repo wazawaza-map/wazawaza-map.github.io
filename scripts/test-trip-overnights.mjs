@@ -20,25 +20,32 @@ function day(id, dayNumber, cityDestinationId, destinationId, extra = {}) {
     destination_id: destinationId, overnight_city: null, lodging_name: null, lodging_url: null,
     lodging_status: null, transport_mode: "train", transport_details: null,
     transport_booking_url: null, transport_departure_time: null, transport_arrival_time: null,
-    transport_booked: false, transport_paid: false, notes: null, trip_stops: [], ...extra,
+    transport_booked: false, transport_paid: false, notes: null, trip_stops: [], trip_day_transports: [], ...extra,
+  };
+}
+
+function transport(id, position, fromName, toName, extra = {}) {
+  return {
+    id, position, mode: "train", from_name: fromName, to_name: toName, details: null, booking_url: null,
+    departure_time: null, arrival_time: null, booked: false, paid: false, ...extra,
   };
 }
 
 test("day-first overview represents Komatsu, Komatsu, Toyama with travel home", () => {
   const trip = {
     id: 2, title: "Исикава — Тояма", status: "planning", start_date: "2026-10-10", end_date: null,
-    notes: null, home_city: "Токио", supports_daily_itinerary: true,
+    notes: null, home_city: "Токио", supports_daily_itinerary: true, supports_multiple_transports: true,
     supports_day_destinations: true, supports_inline_bookings: true, trip_bookings: [],
     trip_days: [
-      day(10, 1, 13, 13, { lodging_name: "Hotel & Komatsu", lodging_status: "booked" }),
-      day(11, 2, 13, 14, { lodging_name: "Toyama hotel" }),
-      day(12, 3, 14, null),
+      day(10, 1, 13, 13, { lodging_name: "Hotel & Komatsu", lodging_status: "booked", trip_day_transports: [transport(101, 1, "Токио", "Комацу")] }),
+      day(11, 2, 13, 14, { lodging_name: "Toyama hotel", trip_day_transports: [transport(102, 1, "Комацу", "Тояма")] }),
+      day(12, 3, 14, null, { trip_day_transports: [transport(103, 1, "Тояма", "Токио")] }),
     ],
   };
   const html = tripEditorPage({ places: [] }, trip, route, new Map());
-  assert.match(html, /value="Токио → Комацу"/);
-  assert.match(html, /value="Комацу → Тояма"/);
-  assert.match(html, /value="Тояма → Токио"/);
+  assert.match(html, /name="day_transport_101_from_name" value="Токио"/);
+  assert.match(html, /name="day_transport_102_to_name" value="Тояма"/);
+  assert.match(html, /name="day_transport_103_to_name" value="Токио"/);
   assert.equal((html.match(/aria-label="Ночёвка после дня/g) ?? []).length, 2);
   assert.equal((html.match(/name="day_10_lodging_name"/g) ?? []).length, 1);
   assert.equal((html.match(/name="day_11_lodging_name"/g) ?? []).length, 1);
@@ -102,14 +109,19 @@ test("print export includes the itinerary but omits private booking links and no
   };
   const trip = {
     id: 5, title: "Trip <draft>", status: "booked", start_date: "2026-10-10", end_date: null,
-    notes: "Personal plan", home_city: "Токио", supports_daily_itinerary: true,
+    notes: "Personal plan", home_city: "Токио", supports_daily_itinerary: true, supports_multiple_transports: true,
     supports_day_destinations: true, supports_inline_bookings: true, supports_stop_transport: true,
-    trip_days: [day(20, 1, 13, 13, { trip_stops: [stop], lodging_url: "https://hotel.invalid/private" })],
+    trip_days: [day(20, 1, 13, 13, { trip_stops: [stop], lodging_url: "https://hotel.invalid/private", trip_day_transports: [
+      transport(301, 1, "Карумаи", "Хатинохе", { mode: "bus" }),
+      transport(302, 2, "Хатинохе", "Итиносэки"),
+    ] })],
     trip_bookings: [{ id: 1, kind: "other", title: "Buy insurance", status: "planned", date: null, url: "https://secret.invalid", notes: "CONFIRMATION-123", position: 1 }],
   };
   const html = buildTripExportHtml(trip, route, new Map());
   assert.ok(html.includes("Trip &lt;draft&gt;"));
   assert.ok(html.includes("Rabbit &lt;park&gt;"));
+  assert.ok(html.includes("Карумаи → Хатинохе"));
+  assert.ok(html.includes("Хатинохе → Итиносэки"));
   assert.ok(html.includes("Туда:</b> Автобус · From station · 08:45–09:20"));
   assert.ok(html.includes("Buy insurance"));
   assert.ok(!html.includes("tickets.invalid"));
@@ -128,8 +140,11 @@ test("Telegram export splits days and keeps every useful and private link", () =
   const trip = {
     id: 6, title: "Telegram trip", status: "booked", start_date: "2026-10-10", end_date: null,
     notes: "Private plan", home_city: "Токио", supports_daily_itinerary: true,
-    supports_day_destinations: true, supports_inline_bookings: true, supports_stop_transport: true,
-    trip_days: [day(20, 1, 13, 13, { trip_stops: [stop], lodging_name: "Hotel", lodging_url: "https://hotel.example/booking", transport_booking_url: "https://train.example/ticket" })],
+    supports_day_destinations: true, supports_inline_bookings: true, supports_stop_transport: true, supports_multiple_transports: true,
+    trip_days: [day(20, 1, 13, 13, { trip_stops: [stop], lodging_name: "Hotel", lodging_url: "https://hotel.example/booking", trip_day_transports: [
+      transport(201, 1, "Карумаи", "Хатинохе", { mode: "bus", booking_url: "https://bus.example/ticket" }),
+      transport(202, 2, "Хатинохе", "Итиносэки", { booking_url: "https://train.example/ticket" }),
+    ] })],
     trip_bookings: [{ id: 1, kind: "other", title: "Insurance", status: "planned", date: null, url: "https://insurance.example/form", notes: "Policy note", position: 1 }],
   };
   const places = new Map([[77, {
@@ -140,6 +155,9 @@ test("Telegram export splits days and keeps every useful and private link", () =
   const messages = buildTelegramTripMessages(trip, route, places);
   assert.equal(messages.length, 2);
   assert.match(messages[0].text, /День 1/);
+  assert.match(messages[0].text, /1\. Карумаи → Хатинохе/);
+  assert.match(messages[0].text, /2\. Хатинохе → Итиносэки/);
+  assert.match(messages[0].text, /https:\/\/bus\.example\/ticket/);
   assert.match(messages[0].text, /https:\/\/train\.example\/ticket/);
   assert.match(messages[0].text, /https:\/\/maps\.example\/rabbits/);
   assert.match(messages[0].text, /https:\/\/rabbits\.example/);

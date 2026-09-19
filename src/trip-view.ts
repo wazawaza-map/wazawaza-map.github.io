@@ -1,6 +1,6 @@
 import { escapeHtml } from "./html";
 import { BOOKING_KIND_LABELS, BOOKING_STATUS_LABELS, STATUS_LABELS, TRANSPORT_MODE_LABELS, placeName } from "./trip-format";
-import type { BookingStatus, Trip, TripBooking, TripDay, TripDestination, TripPlannerOptions, TripPlannerPlace, TripRouteData, TripStop } from "./trip-types";
+import type { BookingStatus, Trip, TripBooking, TripDay, TripDayTransport, TripDestination, TripPlannerOptions, TripPlannerPlace, TripRouteData, TripStop } from "./trip-types";
 import { tripUiState } from "./trip-ui-state";
 
 function statusOptions(selected: Trip["status"]): string {
@@ -101,6 +101,27 @@ function destinationName(id: number | null, destinations: TripDestination[], fal
   return destinations.find(destination => destination.id === id)?.name ?? fallback;
 }
 
+function dayTransportEditor(transport: TripDayTransport, index: number, count: number): string {
+  return `<section class="admin-day-transport" data-day-transport-id="${transport.id}">
+    <header><div><p class="admin-kicker">ПЕРЕЕЗД ${index + 1}</p><h4>${escapeHtml(transport.from_name || "Откуда?")} → ${escapeHtml(transport.to_name || "Куда?")}</h4></div><div>
+      <button type="button" data-move-day-transport="up" data-day-transport-id="${transport.id}"${index === 0 ? " disabled" : ""}>↑</button>
+      <button type="button" data-move-day-transport="down" data-day-transport-id="${transport.id}"${index === count - 1 ? " disabled" : ""}>↓</button>
+      <button class="danger" type="button" data-delete-day-transport="${transport.id}">Удалить</button>
+    </div></header>
+    <div class="admin-form-grid">
+      <label>Откуда<input name="day_transport_${transport.id}_from_name" value="${escapeHtml(transport.from_name || "")}" placeholder="Карумаи"></label>
+      <label>Куда<input name="day_transport_${transport.id}_to_name" value="${escapeHtml(transport.to_name || "")}" placeholder="Хатинохе"></label>
+      <label>Транспорт<select name="day_transport_${transport.id}_mode">${selectOptions(TRANSPORT_MODE_LABELS, transport.mode || "train")}</select></label>
+      <label>Детали<input name="day_transport_${transport.id}_details" value="${escapeHtml(transport.details || "")}" placeholder="Поезд, рейс, пересадка…"></label>
+      <label>Отправление<input name="day_transport_${transport.id}_departure_time" type="time" value="${escapeHtml((transport.departure_time || "").slice(0, 5))}"></label>
+      <label>Прибытие<input name="day_transport_${transport.id}_arrival_time" type="time" value="${escapeHtml((transport.arrival_time || "").slice(0, 5))}"></label>
+      <label>Билет / бронь<input name="day_transport_${transport.id}_booking_url" type="url" value="${escapeHtml(transport.booking_url || "")}" placeholder="https://…"></label>
+      <label class="admin-trip-check"><input name="day_transport_${transport.id}_booked" type="checkbox"${transport.booked ? " checked" : ""}> Забронировано</label>
+      <label class="admin-trip-check"><input name="day_transport_${transport.id}_paid" type="checkbox"${transport.paid ? " checked" : ""}> Оплачено</label>
+    </div>
+  </section>`;
+}
+
 function dailyItineraryEditor(trip: Trip, route: TripRouteData | null): string {
   if (!trip.supports_daily_itinerary) {
     return `<section class="admin-trip-route-setup"><strong>Обзор по дням ещё не включён.</strong><br>Выполните актуальный <code>scripts/trip_planner_setup.sql</code> в Supabase SQL Editor.</section>`;
@@ -125,14 +146,12 @@ function dailyItineraryEditor(trip: Trip, route: TripRouteData | null): string {
                 <option value="">Не выбран</option>
                 ${destinations.map(destination => `<option value="${destination.id}"${destination.id === day.city_destination_id ? " selected" : ""}>${escapeHtml(destination.name)}</option>`).join("")}
               </select></label>
-              <label>Транспорт<select name="day_${day.id}_transport_mode">${selectOptions(TRANSPORT_MODE_LABELS, day.transport_mode || "train")}</select></label>
-              <label>Маршрут<input value="${escapeHtml(`${transportFrom} → ${transportTo}`)}" readonly></label>
-              <label>Детали<input name="day_${day.id}_transport_details" value="${escapeHtml(day.transport_details || "")}" placeholder="Поезд, рейс, пересадка…"></label>
-              <label>Отправление<input name="day_${day.id}_transport_departure_time" type="time" value="${escapeHtml((day.transport_departure_time || "").slice(0, 5))}"></label>
-              <label>Прибытие<input name="day_${day.id}_transport_arrival_time" type="time" value="${escapeHtml((day.transport_arrival_time || "").slice(0, 5))}"></label>
-              <label>Билет / бронь<input name="day_${day.id}_transport_booking_url" type="url" value="${escapeHtml(day.transport_booking_url || "")}" placeholder="https://…"></label>
-              <label class="admin-trip-check"><input name="day_${day.id}_transport_booked" type="checkbox"${day.transport_booked ? " checked" : ""}> Забронировано</label>
-              <label class="admin-trip-check"><input name="day_${day.id}_transport_paid" type="checkbox"${day.transport_paid ? " checked" : ""}> Оплачено</label>
+            </div>
+            <div class="admin-day-transports">
+              ${trip.supports_multiple_transports
+                ? day.trip_day_transports.map((transport, transportIndex) => dayTransportEditor(transport, transportIndex, day.trip_day_transports.length)).join("") || `<p class="admin-trip-day__empty">В этот день пока нет переездов.</p>`
+                : `<section class="admin-day-transport"><p class="admin-trip-route-setup">Выполните актуальный SQL, чтобы добавить несколько переездов. Пока сохранён старый маршрут: ${escapeHtml(`${transportFrom} → ${transportTo}`)}.</p></section>`}
+              ${trip.supports_multiple_transports ? `<button class="secondary admin-add-day-transport" type="button" data-add-day-transport="${day.id}">＋ Добавить транспорт</button>` : ""}
             </div>
             ${!isLast || day.lodging_name || day.lodging_url || day.lodging_status
               ? overnightEditor(day, destinations, trip.supports_day_destinations, trip.supports_inline_bookings)
