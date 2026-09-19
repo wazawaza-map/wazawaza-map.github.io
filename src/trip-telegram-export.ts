@@ -69,10 +69,11 @@ function dayMessage(day: TripDay, index: number, trip: Trip, route: TripRouteDat
       lines.push(...stopLines(stop, stopIndex, places));
     });
   }
-  if (lodging.lodging_name || lodging.lodging_status || (!isLast && overnight)) {
+  if (lodging.lodging_name || lodging.lodging_status || lodging.lodging_google_maps_url || (!isLast && overnight)) {
     lines.push("", `🏨 ${day.lodging_source_day_id ? "Та же ночёвка" : "Ночёвка"}${overnight ? ` · ${overnight}` : ""}`);
     if (lodging.lodging_name) lines.push(lodging.lodging_name);
     if (lodging.lodging_status) lines.push(BOOKING_STATUS_LABELS[lodging.lodging_status]);
+    addLink(lines, "Google Maps", lodging.lodging_google_maps_url);
     addLink(lines, "Бронь", lodging.lodging_url);
   }
   return { title: `День ${day.day_number} · ${city}`, text: lines.filter((line, lineIndex) => line || lines[lineIndex - 1] !== "").join("\n").trim() };

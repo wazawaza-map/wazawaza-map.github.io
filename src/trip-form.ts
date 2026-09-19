@@ -43,6 +43,9 @@ export async function persistTripForm(options: TripDataOptions, trip: Trip, trip
     if (!lodgingSourceDayId && data.has(`day_${day.id}_lodging_url`)) {
       dayValues.lodging_url = String(data.get(`day_${day.id}_lodging_url`) || "").trim() || null;
     }
+    if (trip.supports_lodging_google_maps && !lodgingSourceDayId && data.has(`day_${day.id}_lodging_google_maps_url`)) {
+      dayValues.lodging_google_maps_url = String(data.get(`day_${day.id}_lodging_google_maps_url`) || "").trim() || null;
+    }
     if (trip.supports_inline_bookings && !lodgingSourceDayId && data.has(`day_${day.id}_lodging_status`)) {
       dayValues.lodging_status = String(data.get(`day_${day.id}_lodging_status`) || "") || null;
     }

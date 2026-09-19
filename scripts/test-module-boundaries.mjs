@@ -155,7 +155,7 @@ test("reducing a multi-night stay detaches the formerly covered days", async (t)
     return new Response(null, { status: 204 });
   });
   const makeDay = (id, dayNumber, source) => ({
-    id, day_number: dayNumber, date: null, overnight_city: null, lodging_name: null, lodging_url: null,
+    id, day_number: dayNumber, date: null, overnight_city: null, lodging_name: null, lodging_url: null, lodging_google_maps_url: null,
     lodging_status: null, lodging_source_day_id: source, notes: null, trip_stops: [], trip_day_transports: [],
   });
   const trip = {

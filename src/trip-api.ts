@@ -24,11 +24,11 @@ async function request<T>(
 }
 
 export async function getTrips(options: TripDataOptions, id?: number): Promise<Trip[]> {
-  async function fetchTrips(includeBookings: boolean, includeDayDestinations: boolean, includeInlineBookings: boolean, includeDailyItinerary: boolean, includeStopTransport: boolean, includeMultipleTransports: boolean, includeLodgingSpans: boolean): Promise<Trip[]> {
+  async function fetchTrips(includeBookings: boolean, includeDayDestinations: boolean, includeInlineBookings: boolean, includeDailyItinerary: boolean, includeStopTransport: boolean, includeMultipleTransports: boolean, includeLodgingSpans: boolean, includeLodgingGoogleMaps: boolean): Promise<Trip[]> {
     const dayFields = [
       "id", "day_number", "date", ...(includeDayDestinations ? ["destination_id"] : []),
       ...(includeDailyItinerary ? ["city_destination_id", "transport_mode", "transport_details", "transport_booking_url", "transport_departure_time", "transport_arrival_time", "transport_booked", "transport_paid"] : []),
-      "overnight_city", "lodging_name", "lodging_url", ...(includeInlineBookings ? ["lodging_status"] : []), ...(includeLodgingSpans ? ["lodging_source_day_id"] : []), "notes",
+      "overnight_city", "lodging_name", "lodging_url", ...(includeLodgingGoogleMaps ? ["lodging_google_maps_url"] : []), ...(includeInlineBookings ? ["lodging_status"] : []), ...(includeLodgingSpans ? ["lodging_source_day_id"] : []), "notes",
       `trip_stops(id,place_id,position,custom_name,planned_time,notes${includeInlineBookings ? ",admission_status,admission_url" : ""}${includeStopTransport ? ",to_transport_mode,to_transport_details,to_departure_time,to_arrival_time,back_transport_mode,back_transport_details,back_departure_time,back_arrival_time" : ""})`,
       ...(includeMultipleTransports ? ["trip_day_transports(id,position,mode,from_name,to_name,details,booking_url,departure_time,arrival_time,booked,paid)"] : []),
     ].join(",");
@@ -49,9 +49,10 @@ export async function getTrips(options: TripDataOptions, id?: number): Promise<T
   let includeStopTransport = true;
   let includeMultipleTransports = true;
   let includeLodgingSpans = true;
-  for (let attempt = 0; attempt < 8 && !trips; attempt += 1) {
+  let includeLodgingGoogleMaps = true;
+  for (let attempt = 0; attempt < 9 && !trips; attempt += 1) {
     try {
-      trips = await fetchTrips(includeBookings, includeDayDestinations, includeInlineBookings, includeDailyItinerary, includeStopTransport, includeMultipleTransports, includeLodgingSpans);
+      trips = await fetchTrips(includeBookings, includeDayDestinations, includeInlineBookings, includeDailyItinerary, includeStopTransport, includeMultipleTransports, includeLodgingSpans, includeLodgingGoogleMaps);
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       if (includeBookings && message.includes("trip_bookings")) {
@@ -64,6 +65,8 @@ export async function getTrips(options: TripDataOptions, id?: number): Promise<T
         includeMultipleTransports = false;
       } else if (includeLodgingSpans && message.includes("lodging_source_day_id")) {
         includeLodgingSpans = false;
+      } else if (includeLodgingGoogleMaps && message.includes("lodging_google_maps_url")) {
+        includeLodgingGoogleMaps = false;
       } else if (includeDailyItinerary && (message.includes("home_city") || message.includes("city_destination_id") || message.includes("transport_"))) {
         includeDailyItinerary = false;
       } else if (includeDayDestinations && message.includes("destination_id")) {
@@ -82,6 +85,7 @@ export async function getTrips(options: TripDataOptions, id?: number): Promise<T
     trip.supports_stop_transport = includeStopTransport;
     trip.supports_multiple_transports = includeMultipleTransports;
     trip.supports_lodging_spans = includeLodgingSpans;
+    trip.supports_lodging_google_maps = includeLodgingGoogleMaps;
     if (!includeDailyItinerary) trip.home_city = "Токио";
     trip.trip_days.sort((a, b) => a.day_number - b.day_number);
     trip.trip_days.forEach((day) => {
@@ -92,6 +96,7 @@ export async function getTrips(options: TripDataOptions, id?: number): Promise<T
       }
       if (!includeDayDestinations) day.destination_id = null;
       if (!includeLodgingSpans) day.lodging_source_day_id = null;
+      if (!includeLodgingGoogleMaps) day.lodging_google_maps_url = null;
       if (!includeInlineBookings) day.lodging_status = null;
       if (!includeDailyItinerary) {
         day.city_destination_id = null;

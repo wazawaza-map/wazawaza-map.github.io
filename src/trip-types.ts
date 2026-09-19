@@ -58,6 +58,7 @@ export type TripDay = {
   overnight_city: string | null;
   lodging_name: string | null;
   lodging_url: string | null;
+  lodging_google_maps_url: string | null;
   lodging_status: BookingStatus | null;
   lodging_source_day_id: number | null;
   transport_mode: TripLeg["mode"];
@@ -139,6 +140,7 @@ export type Trip = {
   supports_stop_transport: boolean;
   supports_multiple_transports: boolean;
   supports_lodging_spans: boolean;
+  supports_lodging_google_maps: boolean;
 };
 
 export type TripPlannerOptions = {

@@ -24,5 +24,5 @@ export function lodgingNightCount(day: TripDay, days: TripDay[]): number {
 }
 
 export function hasLodging(day: TripDay): boolean {
-  return Boolean(day.destination_id || day.overnight_city || day.lodging_name || day.lodging_url || day.lodging_status);
+  return Boolean(day.destination_id || day.overnight_city || day.lodging_name || day.lodging_url || day.lodging_google_maps_url || day.lodging_status);
 }

@@ -167,7 +167,7 @@ function dailyItineraryEditor(trip: Trip, route: TripRouteData | null): string {
               ? emptyFinalOvernight(day)
               : day.lodging_source_day_id && trip.supports_lodging_spans
                 ? linkedOvernight(day, lodgingSource, destinations)
-                : overnightEditor(day, destinations, trip.supports_day_destinations, trip.supports_inline_bookings, trip.supports_lodging_spans, lodgingNightCount(day, trip.trip_days), Math.max(1, trip.trip_days.length - index - 1), previousLodging && hasLodging(previousLodging) ? previousLodging : null)
+                : overnightEditor(day, destinations, trip.supports_day_destinations, trip.supports_inline_bookings, trip.supports_lodging_spans, trip.supports_lodging_google_maps, lodgingNightCount(day, trip.trip_days), Math.max(1, trip.trip_days.length - index - 1), previousLodging && hasLodging(previousLodging) ? previousLodging : null)
             }
             <button class="secondary admin-trip-plan-link" type="button" data-scroll-day="${day.id}">↓ Открыть план дня</button>
           </article>`;
@@ -177,7 +177,7 @@ function dailyItineraryEditor(trip: Trip, route: TripRouteData | null): string {
   </details>`;
 }
 
-function overnightEditor(day: TripDay, destinations: TripDestination[], supportsDayDestinations: boolean, supportsInlineBookings: boolean, supportsLodgingSpans = false, nights = 1, maxNights = 1, previousLodging: TripDay | null = null): string {
+function overnightEditor(day: TripDay, destinations: TripDestination[], supportsDayDestinations: boolean, supportsInlineBookings: boolean, supportsLodgingSpans = false, supportsLodgingGoogleMaps = false, nights = 1, maxNights = 1, previousLodging: TripDay | null = null): string {
   const city = destinationName(day.destination_id, destinations, day.overnight_city || "Город не выбран");
   const nightWord = nights % 10 === 1 && nights % 100 !== 11 ? "ночь" : nights % 10 >= 2 && nights % 10 <= 4 && (nights % 100 < 12 || nights % 100 > 14) ? "ночи" : "ночей";
   const summary = [city, supportsLodgingSpans ? `${nights} ${nightWord}` : null, day.lodging_status ? BOOKING_STATUS_LABELS[day.lodging_status] : null].filter(Boolean).join(" · ");
@@ -194,7 +194,8 @@ function overnightEditor(day: TripDay, destinations: TripDestination[], supports
           ${destinations.map((destination, index) => `<option value="${destination.id}"${destination.id === day.destination_id ? " selected" : ""}>${index + 1}. ${escapeHtml(destination.name)}</option>`).join("")}
         </select></label>
         <label>Отель / жильё<input name="day_${day.id}_lodging_name" value="${escapeHtml(day.lodging_name || "")}"></label>
-        <label>Ссылка на жильё<input name="day_${day.id}_lodging_url" type="url" value="${escapeHtml(day.lodging_url || "")}"></label>
+        <label>Ссылка на бронь<input name="day_${day.id}_lodging_url" type="url" value="${escapeHtml(day.lodging_url || "")}"></label>
+        <label>Google Maps<input name="day_${day.id}_lodging_google_maps_url" type="url" value="${escapeHtml(day.lodging_google_maps_url || "")}" placeholder="https://maps.app.goo.gl/…"${supportsLodgingGoogleMaps ? "" : " disabled"}></label>
         <label>Статус жилья<select name="day_${day.id}_lodging_status"${supportsInlineBookings ? "" : " disabled"}>${bookingStatusOptions(day.lodging_status, "Не требуется / без статуса")}</select></label>
       </div>
       ${supportsLodgingSpans && previousLodging ? `<button class="secondary admin-trip-overnight__same" type="button" data-use-previous-lodging="${day.id}" data-lodging-source-day="${previousLodging.id}">Использовать ту же ночёвку, что вчера</button>` : ""}
