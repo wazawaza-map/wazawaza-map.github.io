@@ -37,7 +37,7 @@ test("day-first overview represents Komatsu, Komatsu, Toyama with travel home", 
     notes: null, home_city: "Токио", supports_daily_itinerary: true, supports_multiple_transports: true,
     supports_day_destinations: true, supports_inline_bookings: true, supports_lodging_spans: true, trip_bookings: [],
     trip_days: [
-      day(10, 1, 13, 13, { lodging_name: "Hotel & Komatsu", lodging_status: "booked", trip_day_transports: [transport(101, 1, "Токио", "Комацу")] }),
+      day(10, 1, 13, 13, { lodging_name: "Hotel & Komatsu", lodging_status: "booked", trip_day_transports: [transport(101, 1, "Токио", "Комацу", { departure_time: "09:08:00", arrival_time: "11:50:00" })] }),
       day(11, 2, 13, 14, { lodging_name: "Toyama hotel", trip_day_transports: [transport(102, 1, "Комацу", "Тояма")] }),
       day(12, 3, 14, null, { trip_day_transports: [transport(103, 1, "Тояма", "Токио")] }),
     ],
@@ -46,7 +46,11 @@ test("day-first overview represents Komatsu, Komatsu, Toyama with travel home", 
   assert.match(html, /name="day_transport_101_from_name" value="Токио"/);
   assert.match(html, /name="day_transport_102_to_name" value="Тояма"/);
   assert.match(html, /name="day_transport_103_to_name" value="Токио"/);
+  assert.match(html, /<details class="admin-day-transport" data-day-transport-id="101">/);
+  assert.match(html, /Поезд · 09:08–11:50/);
   assert.equal((html.match(/aria-label="Ночёвка после дня/g) ?? []).length, 2);
+  assert.match(html, /<details class="admin-trip-overnight" aria-label="Ночёвка после дня 1">/);
+  assert.match(html, /Hotel &amp; Komatsu<\/h3><p>Комацу · 1 ночь · Забронировано/);
   assert.equal((html.match(/name="day_10_lodging_name"/g) ?? []).length, 1);
   assert.equal((html.match(/name="day_11_lodging_name"/g) ?? []).length, 1);
   assert.ok(!html.includes('name="day_12_lodging_name"'));

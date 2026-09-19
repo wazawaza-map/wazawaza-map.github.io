@@ -103,24 +103,31 @@ function destinationName(id: number | null, destinations: TripDestination[], fal
 }
 
 function dayTransportEditor(transport: TripDayTransport, index: number, count: number): string {
-  return `<section class="admin-day-transport" data-day-transport-id="${transport.id}">
-    <header><div><p class="admin-kicker">ПЕРЕЕЗД ${index + 1}</p><h4>${escapeHtml(transport.from_name || "Откуда?")} → ${escapeHtml(transport.to_name || "Куда?")}</h4></div><div>
-      <button type="button" data-move-day-transport="up" data-day-transport-id="${transport.id}"${index === 0 ? " disabled" : ""}>↑</button>
-      <button type="button" data-move-day-transport="down" data-day-transport-id="${transport.id}"${index === count - 1 ? " disabled" : ""}>↓</button>
-      <button class="danger" type="button" data-delete-day-transport="${transport.id}">Удалить</button>
-    </div></header>
-    <div class="admin-form-grid">
-      <label>Откуда<input name="day_transport_${transport.id}_from_name" value="${escapeHtml(transport.from_name || "")}" placeholder="Карумаи"></label>
-      <label>Куда<input name="day_transport_${transport.id}_to_name" value="${escapeHtml(transport.to_name || "")}" placeholder="Хатинохе"></label>
-      <label>Транспорт<select name="day_transport_${transport.id}_mode">${selectOptions(TRANSPORT_MODE_LABELS, transport.mode || "train")}</select></label>
-      <label>Детали<input name="day_transport_${transport.id}_details" value="${escapeHtml(transport.details || "")}" placeholder="Поезд, рейс, пересадка…"></label>
-      <label>Отправление<input name="day_transport_${transport.id}_departure_time" type="time" value="${escapeHtml((transport.departure_time || "").slice(0, 5))}"></label>
-      <label>Прибытие<input name="day_transport_${transport.id}_arrival_time" type="time" value="${escapeHtml((transport.arrival_time || "").slice(0, 5))}"></label>
-      <label>Билет / бронь<input name="day_transport_${transport.id}_booking_url" type="url" value="${escapeHtml(transport.booking_url || "")}" placeholder="https://…"></label>
-      <label class="admin-trip-check"><input name="day_transport_${transport.id}_booked" type="checkbox"${transport.booked ? " checked" : ""}> Забронировано</label>
-      <label class="admin-trip-check"><input name="day_transport_${transport.id}_paid" type="checkbox"${transport.paid ? " checked" : ""}> Оплачено</label>
+  const departure = (transport.departure_time || "").slice(0, 5);
+  const arrival = (transport.arrival_time || "").slice(0, 5);
+  const time = departure && arrival ? `${departure}–${arrival}` : departure ? `с ${departure}` : arrival ? `до ${arrival}` : null;
+  const summary = [TRANSPORT_MODE_LABELS[transport.mode || "train"], transport.details, time, transport.paid ? "Оплачено" : transport.booked ? "Забронировано" : null].filter(Boolean).join(" · ");
+  return `<details class="admin-day-transport" data-day-transport-id="${transport.id}">
+    <summary><div><p class="admin-kicker">ПЕРЕЕЗД ${index + 1}</p><h4>${escapeHtml(transport.from_name || "Откуда?")} → ${escapeHtml(transport.to_name || "Куда?")}</h4><p>${escapeHtml(summary)}</p></div></summary>
+    <div class="admin-day-transport__body">
+      <div class="admin-day-transport__actions">
+        <button type="button" data-move-day-transport="up" data-day-transport-id="${transport.id}"${index === 0 ? " disabled" : ""}>↑</button>
+        <button type="button" data-move-day-transport="down" data-day-transport-id="${transport.id}"${index === count - 1 ? " disabled" : ""}>↓</button>
+        <button class="danger" type="button" data-delete-day-transport="${transport.id}">Удалить</button>
+      </div>
+      <div class="admin-form-grid">
+        <label>Откуда<input name="day_transport_${transport.id}_from_name" value="${escapeHtml(transport.from_name || "")}" placeholder="Карумаи"></label>
+        <label>Куда<input name="day_transport_${transport.id}_to_name" value="${escapeHtml(transport.to_name || "")}" placeholder="Хатинохе"></label>
+        <label>Транспорт<select name="day_transport_${transport.id}_mode">${selectOptions(TRANSPORT_MODE_LABELS, transport.mode || "train")}</select></label>
+        <label>Детали<input name="day_transport_${transport.id}_details" value="${escapeHtml(transport.details || "")}" placeholder="Поезд, рейс, пересадка…"></label>
+        <label>Отправление<input name="day_transport_${transport.id}_departure_time" type="time" value="${escapeHtml(departure)}"></label>
+        <label>Прибытие<input name="day_transport_${transport.id}_arrival_time" type="time" value="${escapeHtml(arrival)}"></label>
+        <label>Билет / бронь<input name="day_transport_${transport.id}_booking_url" type="url" value="${escapeHtml(transport.booking_url || "")}" placeholder="https://…"></label>
+        <label class="admin-trip-check"><input name="day_transport_${transport.id}_booked" type="checkbox"${transport.booked ? " checked" : ""}> Забронировано</label>
+        <label class="admin-trip-check"><input name="day_transport_${transport.id}_paid" type="checkbox"${transport.paid ? " checked" : ""}> Оплачено</label>
+      </div>
     </div>
-  </section>`;
+  </details>`;
 }
 
 function dailyItineraryEditor(trip: Trip, route: TripRouteData | null): string {
@@ -171,23 +178,28 @@ function dailyItineraryEditor(trip: Trip, route: TripRouteData | null): string {
 }
 
 function overnightEditor(day: TripDay, destinations: TripDestination[], supportsDayDestinations: boolean, supportsInlineBookings: boolean, supportsLodgingSpans = false, nights = 1, maxNights = 1, previousLodging: TripDay | null = null): string {
-  return `<section class="admin-trip-overnight" aria-label="Ночёвка после дня ${day.day_number}">
-    <div class="admin-trip-overnight__heading">
+  const city = destinationName(day.destination_id, destinations, day.overnight_city || "Город не выбран");
+  const nightWord = nights % 10 === 1 && nights % 100 !== 11 ? "ночь" : nights % 10 >= 2 && nights % 10 <= 4 && (nights % 100 < 12 || nights % 100 > 14) ? "ночи" : "ночей";
+  const summary = [city, supportsLodgingSpans ? `${nights} ${nightWord}` : null, day.lodging_status ? BOOKING_STATUS_LABELS[day.lodging_status] : null].filter(Boolean).join(" · ");
+  return `<details class="admin-trip-overnight" aria-label="Ночёвка после дня ${day.day_number}">
+    <summary class="admin-trip-overnight__heading">
       <span class="admin-trip-overnight__icon" aria-hidden="true">☾</span>
-      <div><p class="admin-kicker">ПОСЛЕ ДНЯ ${day.day_number}</p><h3>Ночёвка</h3></div>
+      <div><p class="admin-kicker">ПОСЛЕ ДНЯ ${day.day_number}</p><h3>${escapeHtml(day.lodging_name || "Ночёвка")}</h3><p>${escapeHtml(summary)}</p></div>
+    </summary>
+    <div class="admin-trip-overnight__body">
+      <div class="admin-form-grid">
+        ${supportsLodgingSpans ? `<label>Количество ночей<select name="day_${day.id}_lodging_nights">${Array.from({ length: maxNights }, (_, index) => index + 1).map((count) => `<option value="${count}"${count === nights ? " selected" : ""}>${count}</option>`).join("")}</select></label>` : ""}
+        <label>Город ночёвки / база<select name="day_${day.id}_destination_id" data-day-base="${day.id}"${supportsDayDestinations ? "" : " disabled"}>
+          <option value="">Не выбран</option>
+          ${destinations.map((destination, index) => `<option value="${destination.id}"${destination.id === day.destination_id ? " selected" : ""}>${index + 1}. ${escapeHtml(destination.name)}</option>`).join("")}
+        </select></label>
+        <label>Отель / жильё<input name="day_${day.id}_lodging_name" value="${escapeHtml(day.lodging_name || "")}"></label>
+        <label>Ссылка на жильё<input name="day_${day.id}_lodging_url" type="url" value="${escapeHtml(day.lodging_url || "")}"></label>
+        <label>Статус жилья<select name="day_${day.id}_lodging_status"${supportsInlineBookings ? "" : " disabled"}>${bookingStatusOptions(day.lodging_status, "Не требуется / без статуса")}</select></label>
+      </div>
+      ${supportsLodgingSpans && previousLodging ? `<button class="secondary admin-trip-overnight__same" type="button" data-use-previous-lodging="${day.id}" data-lodging-source-day="${previousLodging.id}">Использовать ту же ночёвку, что вчера</button>` : ""}
     </div>
-    <div class="admin-form-grid">
-      ${supportsLodgingSpans ? `<label>Количество ночей<select name="day_${day.id}_lodging_nights">${Array.from({ length: maxNights }, (_, index) => index + 1).map((count) => `<option value="${count}"${count === nights ? " selected" : ""}>${count}</option>`).join("")}</select></label>` : ""}
-      <label>Город ночёвки / база<select name="day_${day.id}_destination_id" data-day-base="${day.id}"${supportsDayDestinations ? "" : " disabled"}>
-        <option value="">Не выбран</option>
-        ${destinations.map((destination, index) => `<option value="${destination.id}"${destination.id === day.destination_id ? " selected" : ""}>${index + 1}. ${escapeHtml(destination.name)}</option>`).join("")}
-      </select></label>
-      <label>Отель / жильё<input name="day_${day.id}_lodging_name" value="${escapeHtml(day.lodging_name || "")}"></label>
-      <label>Ссылка на жильё<input name="day_${day.id}_lodging_url" type="url" value="${escapeHtml(day.lodging_url || "")}"></label>
-      <label>Статус жилья<select name="day_${day.id}_lodging_status"${supportsInlineBookings ? "" : " disabled"}>${bookingStatusOptions(day.lodging_status, "Не требуется / без статуса")}</select></label>
-    </div>
-    ${supportsLodgingSpans && previousLodging ? `<button class="secondary admin-trip-overnight__same" type="button" data-use-previous-lodging="${day.id}" data-lodging-source-day="${previousLodging.id}">Использовать ту же ночёвку, что вчера</button>` : ""}
-  </section>`;
+  </details>`;
 }
 
 function linkedOvernight(day: TripDay, source: TripDay, destinations: TripDestination[]): string {

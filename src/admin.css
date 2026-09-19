@@ -127,11 +127,17 @@ button, input, select { font: inherit; }
 .admin-trip-itinerary-day > header time { color: #625e56; font-size: 12px; font-weight: 700; }
 .admin-trip-itinerary-day .admin-trip-overnight { margin: 16px 0 0; border: 1px solid #c8c3b8; }
 .admin-day-transports { display: grid; gap: 10px; margin-top: 16px; }
-.admin-day-transport { padding: 14px; border: 1px solid #b8c3c8; background: #eef2f3; }
-.admin-day-transport > header { display: flex; justify-content: space-between; gap: 14px; align-items: start; margin-bottom: 12px; padding-bottom: 10px; border-bottom: 1px solid #b8c3c8; }
-.admin-day-transport > header h4 { margin: 3px 0 0; font: 500 19px Georgia,serif; }
-.admin-day-transport > header > div:last-child { display: flex; gap: 5px; }
-.admin-day-transport > header button { min-width: 34px; padding: 6px 8px; }
+.admin-day-transport { border: 1px solid #b8c3c8; background: #eef2f3; }
+.admin-day-transport > summary { display: flex; gap: 14px; align-items: center; padding: 12px 46px 12px 14px; cursor: pointer; list-style: none; position: relative; }
+.admin-day-transport > summary::-webkit-details-marker { display: none; }
+.admin-day-transport > summary::after { content: "+"; position: absolute; right: 16px; top: 50%; color: #245e82; font-size: 22px; font-weight: 700; transform: translateY(-50%); }
+.admin-day-transport[open] > summary { border-bottom: 1px solid #b8c3c8; }
+.admin-day-transport[open] > summary::after { content: "−"; }
+.admin-day-transport > summary h4 { margin: 3px 0 0; font: 500 19px Georgia,serif; }
+.admin-day-transport > summary p:last-child { margin: 5px 0 0; color: #5d5951; font-size: 12px; }
+.admin-day-transport__body { padding: 14px; }
+.admin-day-transport__actions { display: flex; justify-content: flex-end; gap: 5px; margin-bottom: 12px; }
+.admin-day-transport__actions button { min-width: 34px; padding: 6px 8px; }
 .admin-add-day-transport { justify-self: start; }
 .admin-trip-plan-link { margin-top: 16px; background: transparent !important; color: #222 !important; }
 .admin-trip-route-section--technical { border-color: #817c72; background: #ece9e1; }
@@ -177,6 +183,13 @@ button, input, select { font: inherit; }
 .admin-add-booking { display: grid; grid-template-columns: minmax(240px, 1fr) auto; gap: 10px; align-items: end; margin-top: 14px; padding-top: 14px; border-top: 1px solid #817c72; }
 .admin-trip-days { display: grid; gap: 18px; }
 .admin-trip-overnight { display: grid; gap: 16px; margin: 0 18px; padding: 16px 22px; border-right: 1px solid #c8c3b8; border-left: 1px solid #c8c3b8; background: #eef0e6; }
+.admin-trip-overnight:is(details) { display: block; padding: 0; }
+.admin-trip-overnight:is(details) > summary { padding: 14px 48px 14px 18px; cursor: pointer; list-style: none; position: relative; }
+.admin-trip-overnight:is(details) > summary::-webkit-details-marker { display: none; }
+.admin-trip-overnight:is(details) > summary::after { content: "+"; position: absolute; right: 18px; top: 50%; color: #245e82; font-size: 22px; font-weight: 700; transform: translateY(-50%); }
+.admin-trip-overnight:is(details)[open] > summary { border-bottom: 1px solid #c8c3b8; }
+.admin-trip-overnight:is(details)[open] > summary::after { content: "−"; }
+.admin-trip-overnight__body { display: grid; gap: 16px; padding: 16px 22px; }
 .admin-trip-unassigned-nights { margin-top: 16px; }
 .admin-trip-unassigned-nights .admin-trip-overnight { margin: 0 0 8px; border: 1px solid #c8c3b8; }
 .admin-trip-overnight__heading { display: flex; gap: 12px; align-items: center; }
@@ -248,7 +261,7 @@ button, input, select { font: inherit; }
   .admin-trip-stop__fields { grid-template-columns: 1fr; }
   .admin-stop-transport__direction { grid-template-columns: 1fr; }
   .admin-stop-transport > header { align-items: stretch; flex-direction: column; }
-  .admin-day-transport > header { flex-direction: column; }
+  .admin-day-transport > summary { padding-right: 42px; }
   .admin-trip-editor__footer > div { display: grid; grid-template-columns: 1fr; }
   .admin-trip-map-section { grid-template-columns: 1fr; }
   .admin-trip-map { height: 55vh; min-height: 320px; }
