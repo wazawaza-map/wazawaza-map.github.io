@@ -6,6 +6,7 @@ const server = await createServer({ configFile: false, optimizeDeps: { noDiscove
 after(() => server.close());
 const { tripEditorPage } = await server.ssrLoadModule("/src/trip-view.ts");
 const { buildTripExportHtml } = await server.ssrLoadModule("/src/trip-export.ts");
+const { buildTelegramTripMessages } = await server.ssrLoadModule("/src/trip-telegram-export.ts");
 
 const destinations = [
   { id: 13, name: "Комацу", position: 1, trip_day_id: 10 },
@@ -115,4 +116,35 @@ test("print export includes the itinerary but omits private booking links and no
   assert.ok(!html.includes("hotel.invalid"));
   assert.ok(!html.includes("secret.invalid"));
   assert.ok(!html.includes("CONFIRMATION-123"));
+});
+
+test("Telegram export splits days and keeps every useful and private link", () => {
+  const stop = {
+    id: 82, place_id: 77, position: 1, custom_name: null, planned_time: "09:30:00", notes: "Bring carrots",
+    admission_status: "paid", admission_url: "https://tickets.example/entry", to_transport_mode: "bus",
+    to_transport_details: "From station", to_departure_time: "08:45:00", to_arrival_time: "09:20:00",
+    back_transport_mode: "train", back_transport_details: "To hotel", back_departure_time: null, back_arrival_time: null,
+  };
+  const trip = {
+    id: 6, title: "Telegram trip", status: "booked", start_date: "2026-10-10", end_date: null,
+    notes: "Private plan", home_city: "Токио", supports_daily_itinerary: true,
+    supports_day_destinations: true, supports_inline_bookings: true, supports_stop_transport: true,
+    trip_days: [day(20, 1, 13, 13, { trip_stops: [stop], lodging_name: "Hotel", lodging_url: "https://hotel.example/booking", transport_booking_url: "https://train.example/ticket" })],
+    trip_bookings: [{ id: 1, kind: "other", title: "Insurance", status: "planned", date: null, url: "https://insurance.example/form", notes: "Policy note", position: 1 }],
+  };
+  const places = new Map([[77, {
+    id: 77, prefecture: "石川県", municipality: "小松市", latitude: 36.1, longitude: 136.4,
+    google_maps_url: "https://maps.example/rabbits", website_url: "https://rabbits.example",
+    place_translations: [{ locale: "ru", name: "Кролики" }],
+  }]]);
+  const messages = buildTelegramTripMessages(trip, route, places);
+  assert.equal(messages.length, 2);
+  assert.match(messages[0].text, /День 1/);
+  assert.match(messages[0].text, /https:\/\/train\.example\/ticket/);
+  assert.match(messages[0].text, /https:\/\/maps\.example\/rabbits/);
+  assert.match(messages[0].text, /https:\/\/rabbits\.example/);
+  assert.match(messages[0].text, /https:\/\/tickets\.example\/entry/);
+  assert.match(messages[0].text, /https:\/\/hotel\.example\/booking/);
+  assert.match(messages[1].text, /https:\/\/insurance\.example\/form/);
+  assert.match(messages[1].text, /Policy note/);
 });

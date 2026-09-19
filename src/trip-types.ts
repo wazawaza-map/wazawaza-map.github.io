@@ -9,6 +9,8 @@ export type TripPlannerPlace = {
   municipality: string | null;
   latitude: number;
   longitude: number;
+  google_maps_url?: string | null;
+  website_url?: string | null;
   place_translations: Array<{ locale: string; name: string }>;
 };
 

@@ -204,6 +204,17 @@ button, input, select { font: inherit; }
 .admin-add-stop > span { align-self: center; color: #625e56; font-size: 12px; }
 .admin-trip-editor__footer { display: flex; justify-content: space-between; gap: 16px; margin-top: 20px; padding-top: 20px; border-top: 1px solid #222; }
 .admin-trip-editor__footer > div { display: flex; gap: 10px; }
+.admin-telegram-export-overlay { position: fixed; z-index: 2000; inset: 0; overflow: auto; padding: 32px; background: rgba(20,20,18,.68); }
+.admin-telegram-export { width: min(900px, 100%); margin: 0 auto; padding: 22px; border: 1px solid #222; background: #f4f1e9; box-shadow: 0 12px 45px rgba(0,0,0,.35); }
+.admin-telegram-export > header { display: flex; justify-content: space-between; gap: 16px; align-items: start; padding-bottom: 14px; border-bottom: 1px solid #817c72; }
+.admin-telegram-export h2 { margin: 3px 0 0; font: 500 28px Georgia,serif; }
+.admin-telegram-export__hint { padding: 11px 13px; border-left: 3px solid #a0271e; background: #fff; color: #625e56; font-size: 12px; }
+.admin-telegram-export__messages { display: grid; gap: 14px; margin-top: 16px; }
+.admin-telegram-export__messages article { padding: 14px; border: 1px solid #c8c3b8; background: #fff; }
+.admin-telegram-export__messages article > header { display: flex; justify-content: space-between; gap: 12px; margin-bottom: 9px; }
+.admin-telegram-export__messages article > header span { color: #625e56; font-size: 11px; }
+.admin-telegram-export textarea { width: 100%; min-height: 220px; padding: 12px; border: 1px solid #817c72; resize: vertical; background: #fafafa; font: 13px/1.5 ui-monospace, monospace; }
+.admin-telegram-export__messages button { margin-top: 9px; }
 @media (max-width: 680px) {
   .admin-shell { width: min(100% - 20px, 1440px); padding-top: 20px; }
   .admin-header { align-items: start; }
@@ -239,6 +250,8 @@ button, input, select { font: inherit; }
   .admin-booking__fields, .admin-add-booking { grid-template-columns: 1fr; }
   .admin-booking__note { grid-column: auto; }
   .admin-booking > button { grid-column: 2; justify-self: start; }
+  .admin-telegram-export-overlay { padding: 0; }
+  .admin-telegram-export { min-height: 100vh; border: 0; }
 }
 .admin-place-tags {
   margin: 1rem 0;

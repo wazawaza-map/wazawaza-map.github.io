@@ -2,6 +2,7 @@ import { escapeHtml } from "./html";
 import { compactStopPositions, deleteRow, getTripRoute, getTrips, insertRow, renumberRows, updateRow } from "./trip-api";
 import { persistTripForm } from "./trip-form";
 import { openTripExportPreview, writeTripExportPreview } from "./trip-export";
+import { buildTelegramTripMessages, showTelegramTripExport } from "./trip-telegram-export";
 import { resolvePlaceId, setupMessage } from "./trip-format";
 import { destroyTripMap, initializeTripMap } from "./trip-map";
 import type { TripBooking, TripDay, TripDestination, TripLeg, TripPlannerOptions, TripStop } from "./trip-types";
@@ -28,6 +29,7 @@ export async function renderTripEditor(options: TripPlannerOptions, tripId: numb
     const legs = tripRoute?.legs ?? [];
     document.querySelector("[data-back-to-trips]")?.addEventListener("click", () => void onBack());
     document.querySelector("[data-export-trip]")?.addEventListener("click", () => void exportCurrentTrip());
+    document.querySelector("[data-export-telegram]")?.addEventListener("click", () => void exportCurrentTripToTelegram());
     document.querySelector("#logout")?.addEventListener("click", () => {
       destroyTripMap();
       options.onLogout();
@@ -50,6 +52,21 @@ export async function renderTripEditor(options: TripPlannerOptions, tripId: numb
         writeTripExportPreview(preview, savedTrip, await getTripRoute(options, trip.id), places);
       } catch (exportError) {
         preview?.close();
+        if (error) {
+          error.textContent = setupMessage(exportError);
+          error.scrollIntoView({ behavior: "smooth", block: "center" });
+        }
+      }
+    }
+
+    async function exportCurrentTripToTelegram(): Promise<void> {
+      if (error) error.textContent = "";
+      try {
+        await persistChangedForm();
+        const savedTrip = (await getTrips(options, trip.id))[0];
+        if (!savedTrip) throw new Error("Поездка не найдена после сохранения.");
+        showTelegramTripExport(buildTelegramTripMessages(savedTrip, await getTripRoute(options, trip.id), places));
+      } catch (exportError) {
         if (error) {
           error.textContent = setupMessage(exportError);
           error.scrollIntoView({ behavior: "smooth", block: "center" });

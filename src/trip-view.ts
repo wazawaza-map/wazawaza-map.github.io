@@ -267,7 +267,7 @@ export function tripEditorPage(options: TripPlannerOptions, trip: Trip, tripRout
   return `<main class="admin-shell admin-trip-editor-shell">
     <header class="admin-header">
       <div><p class="admin-kicker">WAZAWAZA · ПОЕЗДКА #${trip.id}</p><h1>${escapeHtml(trip.title)}</h1></div>
-      <div class="admin-account"><button type="button" data-back-to-trips>← Все поездки</button><button type="button" data-export-trip>Экспорт / PDF</button><button id="logout" type="button">Выйти</button></div>
+      <div class="admin-account"><button type="button" data-back-to-trips>← Все поездки</button><button type="button" data-export-trip>Экспорт / PDF</button><button type="button" data-export-telegram>Экспорт для Telegram</button><button id="logout" type="button">Выйти</button></div>
     </header>
     <form id="trip-editor" class="admin-trip-editor">
       <section class="admin-trip-basics">
