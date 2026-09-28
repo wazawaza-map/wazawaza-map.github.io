@@ -53,6 +53,7 @@ export function openPlaceDrawer(
         ${fact(copy.environment, environmentLabel(place.indoor_outdoor, locale))}
       </div>
       ${detail(copy.whyInteresting, translation?.interest)}
+      ${detail(copy.comment, translation?.comment)}
       ${detail(copy.nearestStation, translation?.nearest_station)}
       ${detail(copy.directions, translation?.access_note, place.access_modes)}
       ${detail(

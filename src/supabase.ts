@@ -46,7 +46,7 @@ export async function getPlaces(locale = "ru"): Promise<Place[]> {
     "website_url",
     "visited_at",
   ];
-  const translations = "place_translations(locale,name,summary,area,nearest_station,access_note,interest,seasonality,price_note,hours_note,cluster_name)";
+  const translations = "place_translations(locale,name,summary,comment,area,nearest_station,access_note,interest,seasonality,price_note,hours_note,cluster_name)";
 
   async function fetchPlaces(includeVisited: boolean): Promise<Place[]> {
     const select = [...fields, ...(includeVisited ? ["visited"] : []), translations].join(",");

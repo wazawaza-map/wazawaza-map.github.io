@@ -54,6 +54,7 @@ function localizedPlace(place, locale) {
     area: translation?.area || null,
     summary: translation?.summary || null,
     why_interesting: translation?.interest || null,
+    comment: translation?.comment || null,
     latitude: place.latitude,
     longitude: place.longitude,
     category: place.category,
@@ -83,7 +84,7 @@ async function fetchPublishedPlaces() {
     "tags", "access_modes", "visit_minutes", "indoor_outdoor", "station_walk_min",
     "reservation", "google_maps_url", "website_url", "visited", "visited_at",
   ];
-  const translations = "place_translations(locale,name,summary,area,nearest_station,access_note,interest,seasonality,price_note,hours_note,cluster_name)";
+  const translations = "place_translations(locale,name,summary,comment,area,nearest_station,access_note,interest,seasonality,price_note,hours_note,cluster_name)";
   const params = new URLSearchParams({
     select: [...fields, translations].join(","),
     status: "eq.published",

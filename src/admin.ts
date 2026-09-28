@@ -41,6 +41,7 @@ type AdminPlace = {
     name: string;
     area: string | null;
     summary: string | null;
+    comment: string | null;
     interest: string | null;
     nearest_station: string | null;
     access_note: string | null;
@@ -141,7 +142,7 @@ async function getPlaces(session: AdminSession): Promise<AdminPlace[]> {
     "longitude", "status", "updated_at", "google_maps_url",
     "website_url", "category", "tags", "visited_at",
   ];
-  const translations = "place_translations(locale,name,area,summary,interest,nearest_station,access_note)";
+  const translations = "place_translations(locale,name,area,summary,comment,interest,nearest_station,access_note)";
   async function fetchPlaces(includeVisited: boolean): Promise<AdminPlace[]> {
     const select = [...fields, ...(includeVisited ? ["visited"] : []), translations].join(",");
     const params = new URLSearchParams({ select, order: "updated_at.desc,id.desc" });
@@ -412,7 +413,7 @@ async function renderDashboard(
             legacy_data: {},
           });
           await upsertTranslation(session, { place_id: newPlace.id, locale: "ru", name, area: area.locality });
-          newPlace.place_translations = [{ locale: "ru", name, area: area.locality, summary: null, interest: null, nearest_station: null, access_note: null }];
+          newPlace.place_translations = [{ locale: "ru", name, area: area.locality, summary: null, comment: null, interest: null, nearest_station: null, access_note: null }];
           if (addPlaceStatus) addPlaceStatus.textContent = `Создан черновик #${newPlace.id}.`;
           openPlaceEditor(session, newPlace, "map", currentMapState());
         } catch (createError) {
@@ -745,6 +746,7 @@ function openPlaceEditor(
           name,
           area: optional(data, `${locale}_area`),
           summary: optional(data, `${locale}_summary`),
+          comment: optional(data, `${locale}_comment`),
           interest: optional(data, `${locale}_interest`),
           nearest_station: optional(data, `${locale}_nearest_station`),
           access_note: optional(data, `${locale}_access_note`),
@@ -834,6 +836,7 @@ function translationPanel(place: AdminPlace, locale: "ru" | "ja" | "en", hidden:
     </div>
     ${textarea("Краткое описание", `${locale}_summary`, translation?.summary ?? "")}
     ${textarea("Почему интересно", `${locale}_interest`, translation?.interest ?? "")}
+    ${textarea("Мой комментарий", `${locale}_comment`, translation?.comment ?? "")}
     ${textarea("Как добраться", `${locale}_access_note`, translation?.access_note ?? "")}
   </div>`;
 }

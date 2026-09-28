@@ -21,7 +21,7 @@ from pathlib import Path
 from typing import Any
 
 ROOT = Path(__file__).resolve().parents[1]
-FIELDS = ("name", "area", "summary", "interest", "nearest_station", "access_note")
+FIELDS = ("name", "area", "summary", "comment", "interest", "nearest_station", "access_note")
 
 
 def load_dotenv() -> None:
@@ -51,7 +51,7 @@ def fetch_sources(limit: int, offset: int) -> list[dict[str, Any]]:
     key = os.environ.get("VITE_SUPABASE_PUBLISHABLE_KEY") or os.environ.get("SUPABASE_ANON_KEY")
     if not base or not key:
         raise SystemExit("Set VITE_SUPABASE_URL and VITE_SUPABASE_PUBLISHABLE_KEY in .env.")
-    select = "id,legacy_id,prefecture,municipality,legacy_data,place_translations!inner(locale,name,area,summary,interest,nearest_station,access_note)"
+    select = "id,legacy_id,prefecture,municipality,legacy_data,place_translations!inner(locale,name,area,summary,comment,interest,nearest_station,access_note)"
     params = urllib.parse.urlencode({
         "select": select,
         "place_translations.locale": "eq.ru",

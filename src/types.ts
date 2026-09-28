@@ -2,6 +2,7 @@ export type PlaceTranslation = {
   locale: "ru" | "ja" | "en";
   name: string;
   summary: string | null;
+  comment: string | null;
   area: string | null;
   nearest_station: string | null;
   access_note: string | null;

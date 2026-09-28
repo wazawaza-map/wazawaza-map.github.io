@@ -11,7 +11,7 @@ import urllib.parse
 import urllib.request
 from pathlib import Path
 
-FIELDS = ("name", "area", "summary", "interest", "nearest_station", "access_note")
+FIELDS = ("name", "area", "summary", "comment", "interest", "nearest_station", "access_note")
 
 
 def main() -> None:

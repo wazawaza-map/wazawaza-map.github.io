@@ -68,6 +68,7 @@ export function getMatchingPlaces(
       [
         translation?.name,
         translation?.summary,
+        translation?.comment,
         translation?.interest,
         translation?.area,
         translation?.nearest_station,
