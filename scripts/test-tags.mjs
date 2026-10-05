@@ -17,6 +17,12 @@ test("legacy dark passage aliases resolve to one translated ID", () => {
   assert.equal(tagLabel("戒壇巡り", "ja"), "戒壇巡り");
   assert.equal(tagLabel("unknown", "en"), "unknown");
 });
+test("legacy mountain tags resolve to translated filter IDs", () => {
+  assert.deepEqual(knownTagIds(["горы", "хайкинг", "канатная дорога", "фуникулёр"]), ["mountains", "hiking", "ropeway"]);
+  assert.equal(tagLabel("горы", "ja"), "山・山岳");
+  assert.equal(tagLabel("хайкинг", "en"), "Hiking");
+  assert.equal(tagLabel("канатная дорога", "ru"), "Канатная дорога");
+});
 test("editing selected tags retains uncatalogued legacy tags and removes deselected IDs", () => {
   assert.deepEqual(mergePlaceTags(["фотогенично", "anime", "戒壇巡り"], ["work-haikyu"]), ["фотогенично", "work-haikyu"]);
 });

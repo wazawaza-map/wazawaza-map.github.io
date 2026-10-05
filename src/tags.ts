@@ -6,11 +6,17 @@ export const TAGS = [
   { id: "anime", ru: "Аниме и манга", ja: "アニメ・漫画", en: "Anime & manga" },
   { id: "work-golden-kamuy", ru: "Golden Kamuy", ja: "ゴールデンカムイ", en: "Golden Kamuy" },
   { id: "work-haikyu", ru: "Haikyu!!", ja: "ハイキュー!!", en: "Haikyu!!" },
+  { id: "mountains", ru: "Горы", ja: "山・山岳", en: "Mountains" },
+  { id: "hiking", ru: "Хайкинг", ja: "ハイキング・登山", en: "Hiking" },
+  { id: "ropeway", ru: "Канатная дорога", ja: "ロープウェイ・ケーブルカー", en: "Ropeway & cable car" },
 ] as const;
 
 const ALIASES: Record<string, string> = {
   "戒壇巡り": "kaidan-meguri", "戒壇めぐり": "kaidan-meguri", "お戒壇巡り": "kaidan-meguri",
   "お戒壇めぐり": "kaidan-meguri",
+  "гора": "mountains", "горы": "mountains",
+  "хайкинг": "hiking",
+  "канатная дорога": "ropeway", "фуникулёр": "ropeway",
 };
 
 export function normalizeTag(id: string): string { return ALIASES[id] ?? id; }
